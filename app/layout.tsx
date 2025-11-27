@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { ThemeProvider } from "@/components/theme-provider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -23,11 +24,24 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        {children}
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          {children}
+
+          {/* Global Footer */}
+          <footer className="py-6 mt-10 text-center text-xs bg-gradient-to-r from-primary/5 to-background text-muted-foreground rounded-t-xl">
+            <p className="font-medium">© {new Date().getFullYear()} Rizqi Raffy Imam Malik</p>
+            <p>Faculty of Mathematics and Natural Sciences (FMIPA), Universitas Gadjah Mada • Electronics and Instrumentation Laboratory</p>
+          </footer>
+        </ThemeProvider>
       </body>
     </html>
   );
