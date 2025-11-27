@@ -1,3 +1,4 @@
+import { Suspense } from "react"
 import { Icon } from "lucide-react"
 import { barn } from '@lucide/lab';
 
@@ -13,7 +14,10 @@ export default function LoginPage() {
           </div>
           GROWT.
         </a>
-        <LoginForm />
+
+        <Suspense fallback={<div>Loading...</div>}>
+          <LoginForm />
+        </Suspense>
       </div>
     </div>
   )
