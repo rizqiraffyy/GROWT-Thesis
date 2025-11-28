@@ -26,8 +26,11 @@ export function GoogleLoginButton({
 
     try {
       const supabase = getSupabaseBrowser()
-      const siteUrl =
-        process.env.NEXT_PUBLIC_SITE_URL || window.location.origin
+
+      let siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"
+      if (typeof window !== "undefined") {
+        siteUrl = window.location.origin
+      }
 
       // note: sanitize redirect to avoid open redirect vulnerabilities
       const safeRedirect =

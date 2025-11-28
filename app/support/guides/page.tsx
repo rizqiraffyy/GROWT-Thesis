@@ -1,25 +1,32 @@
 // app/guide/page.tsx
-"use client"
+"use client";
 
-import Link from "next/link"
-import { CheckCircle2, LineChart, ListChecks, ShieldCheck, Users } from "lucide-react"
+import Link from "next/link";
+import {
+  CheckCircle2,
+  LineChart,
+  ListChecks,
+  Users,
+  Globe2,
+  Settings,
+} from "lucide-react";
 
-import { Button } from "@/components/ui/button"
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardHeader,
   CardTitle,
   CardDescription,
   CardContent,
-} from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 
 export default function GuidePage() {
-  const appName = "Growt"
+  const appName = "Growt";
 
   return (
-    <main className="min-h-screen bg-background px-4 py-10 flex justify-center">
+    <main className="flex min-h-screen justify-center bg-background px-4 py-10">
       <div className="w-full max-w-4xl space-y-8">
         {/* Header */}
         <section className="space-y-3 text-center">
@@ -30,25 +37,19 @@ export default function GuidePage() {
             Guide to using {appName}
           </h1>
           <p className="mx-auto max-w-2xl text-sm text-muted-foreground">
-            This guide helps you get started with {appName} — from creating an account,
-            setting up your farm, adding livestock, to tracking growth and health over time.
+            This guide walks you through how {appName} works — from creating an
+            account, completing your farmer profile and address, adding livestock and RFID
+            tags, to tracking weight trends and Health Score over time.
           </p>
-          <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
-            <Button asChild size="sm">
-              <Link href="/auth/signup">Create an account</Link>
-            </Button>
-            <Button asChild size="sm" variant="outline">
-              <Link href="/main/dashboard">Go to dashboard</Link>
-            </Button>
-          </div>
         </section>
 
-        {/* Step by step */}
+        {/* 1. Flow: from signup to first weighing */}
         <Card>
           <CardHeader>
-            <CardTitle>1. Getting started</CardTitle>
+            <CardTitle>1. From signup to your first weighing</CardTitle>
             <CardDescription>
-              Start by creating an account, then set up your farmer profile and farm data.
+              A step-by-step overview of how data flows in {appName} — from your
+              account to the IoT weighing device.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4 text-sm text-muted-foreground">
@@ -56,7 +57,8 @@ export default function GuidePage() {
               <p className="font-medium text-foreground">A. Create your account</p>
               <ul className="list-disc space-y-1 pl-5">
                 <li>
-                  Go to <Link href="/auth/signup" className="text-primary underline">
+                  Go to{" "}
+                  <Link href="/auth/signup" className="text-primary underline">
                     Sign up
                   </Link>{" "}
                   and create an account using your email and password.
@@ -78,50 +80,123 @@ export default function GuidePage() {
             <Separator />
 
             <div className="space-y-2">
-              <p className="font-medium text-foreground">B. Complete your profile</p>
+              <p className="font-medium text-foreground">
+                B. Complete your farmer profile & address
+              </p>
               <p>
-                After logging in, go to your profile/settings page to review your name,
-                email, and other details. Keeping your profile up to date helps us
-                associate your livestock and farm records correctly.
+                After logging in, open the <span className="font-medium">Settings</span>{" "}
+                page. Here you can:
+              </p>
+              <ul className="list-disc space-y-1 pl-5">
+                <li>Update your profile photo and see when your account was created.</li>
+                <li>Fill in personal information such as phone, date of birth, gender.</li>
+                <li>
+                  Add your full address: province, regency, district, village, street,
+                  postcode, and full address.
+                </li>
+              </ul>
+              <p className="mt-1">
+                Completing these sections unlocks the ability to register livestock
+                under your account.
+              </p>
+            </div>
+
+            <Separator />
+
+            <div className="space-y-2">
+              <p className="font-medium text-foreground">C. Add livestock & RFID</p>
+              <p>
+                Next, go to the livestock section in your dashboard and register each
+                animal:
+              </p>
+              <ul className="list-disc space-y-1 pl-5">
+                <li>Name, breed, species, sex, and age or date of birth.</li>
+                <li>Photo of the animal for easier identification.</li>
+                <li>
+                  RFID tag that will be used by the IoT weighing device to match logs
+                  with this animal.
+                </li>
+              </ul>
+              <p className="mt-1">
+                Make sure the RFID codes stored in {appName} match the ones used on
+                your physical tags.
+              </p>
+            </div>
+
+            <Separator />
+
+            <div className="space-y-2">
+              <p className="font-medium text-foreground">
+                D. Start sending logs from the IoT weighing device
+              </p>
+              <p>
+                Once livestock and their RFID tags are registered, the IoT weighing
+                device can send data to {appName}:
+              </p>
+              <ul className="list-disc space-y-1 pl-5">
+                <li>
+                  When an animal steps on the scale, its RFID is read and attached to
+                  the weighing record.
+                </li>
+                <li>
+                  The device sends weight, timestamp, and RFID to the cloud database.
+                </li>
+                <li>
+                  {appName} stores the log and links it to the matching livestock
+                  profile automatically.
+                </li>
+              </ul>
+              <p className="mt-1">
+                If an RFID is not registered in the database, the device will not be
+                able to create a valid log for that animal.
               </p>
             </div>
           </CardContent>
         </Card>
 
-        {/* Core features */}
+        {/* 2. Pages & features */}
         <Card>
           <CardHeader>
-            <CardTitle>2. Main features</CardTitle>
+            <CardTitle>2. Pages you&apos;ll use in {appName}</CardTitle>
             <CardDescription>
-              Overview of the core features you&apos;ll use every day in {appName}.
+              A quick overview of the main pages and what you can do on each of them.
             </CardDescription>
           </CardHeader>
-          <CardContent className="grid gap-4 md:grid-cols-2 text-sm text-muted-foreground">
+          <CardContent className="grid gap-4 text-sm text-muted-foreground md:grid-cols-2">
             <div className="space-y-2">
               <div className="flex items-center gap-2">
-                <Users className="h-4 w-4 text-primary" />
-                <p className="font-medium text-foreground">Farmer & livestock management</p>
+                <LineChart className="h-4 w-4 text-primary" />
+                <p className="font-medium text-foreground">Main dashboard</p>
               </div>
               <ul className="list-disc space-y-1 pl-5">
-                <li>Create and manage farmer information.</li>
-                <li>Add livestock with details such as species, ID/tag, sex, and notes.</li>
-                <li>View all livestock in a structured table.</li>
+                <li>
+                  See 4 key cards: total livestock, average weight, stuck &amp; loss
+                  count, and a 1–100 Health Score.
+                </li>
+                <li>
+                  View charts for weight and Health Score over time (3 months up to 2
+                  years).
+                </li>
+                <li>
+                  Access a livestock table with photo, RFID, species, sex, age,
+                  weight, delta, status, and a switch to share an animal publicly.
+                </li>
               </ul>
             </div>
 
             <div className="space-y-2">
               <div className="flex items-center gap-2">
-                <LineChart className="h-4 w-4 text-primary" />
-                <p className="font-medium text-foreground">Weight tracking & statistics</p>
+                <Users className="h-4 w-4 text-primary" />
+                <p className="font-medium text-foreground">Livestock detail</p>
               </div>
               <ul className="list-disc space-y-1 pl-5">
-                <li>Record weight updates for each animal over time.</li>
                 <li>
-                  Dashboard cards show total livestock, average weight, and growth
-                  performance.
+                  See a detailed profile card for a single animal, including photo and
+                  identification data.
                 </li>
+                <li>View a weight trend chart only for that animal.</li>
                 <li>
-                  See trends (up, stable, or down) to quickly detect abnormal conditions.
+                  Explore all weighing logs linked to its RFID in a dedicated table.
                 </li>
               </ul>
             </div>
@@ -129,100 +204,165 @@ export default function GuidePage() {
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <ListChecks className="h-4 w-4 text-primary" />
-                <p className="font-medium text-foreground">Task & activity planning</p>
+                <p className="font-medium text-foreground">Data logs</p>
               </div>
               <ul className="list-disc space-y-1 pl-5">
-                <li>Create routine tasks related to feeding, weighing, or health checks.</li>
-                <li>Use filters and search to quickly find specific tasks.</li>
-                <li>Keep your daily farm activities organized in one place.</li>
+                <li>
+                  See every weighing log ever recorded under your account in a single
+                  table.
+                </li>
+                <li>
+                  Summary cards show total logs, highest recorded weight, stuck &amp;
+                  loss weight, and logs this month.
+                </li>
+                <li>
+                  Useful for audits, research, or exporting raw data for analysis.
+                </li>
               </ul>
             </div>
 
             <div className="space-y-2">
               <div className="flex items-center gap-2">
-                <ShieldCheck className="h-4 w-4 text-primary" />
-                <p className="font-medium text-foreground">Secure authentication</p>
+                <Globe2 className="h-4 w-4 text-primary" />
+                <p className="font-medium text-foreground">Global page</p>
               </div>
               <ul className="list-disc space-y-1 pl-5">
-                <li>Sign in with email and password or Google OAuth.</li>
-                <li>Password reset flow via email if you forget your credentials.</li>
                 <li>
-                  Email verification (if enabled) ensures only valid accounts can access
-                  your data.
+                  Explore livestock that other farmers choose to share publicly.
+                </li>
+                <li>
+                  See stats like total shared livestock, global average weight, highest
+                  public record weight, and total public logs.
+                </li>
+                <li>
+                  Livestock details here are read-only — they can&apos;t be edited.
+                </li>
+              </ul>
+            </div>
+
+            <div className="space-y-2 md:col-span-2">
+              <div className="flex items-center gap-2">
+                <Settings className="h-4 w-4 text-primary" />
+                <p className="font-medium text-foreground">Settings & account</p>
+              </div>
+              <ul className="list-disc space-y-1 pl-5">
+                <li>
+                  Update profile photo and see when your account was created (Account
+                  Overview).
+                </li>
+                <li>
+                  Maintain personal details and full address (Personal Information and
+                  Address Details).
+                </li>
+                <li>
+                  Delete your account if needed — this also removes livestock, logs,
+                  and the link between your account and RFID tags.
                 </li>
               </ul>
             </div>
           </CardContent>
         </Card>
 
-        {/* Daily workflow */}
+        {/* 3. Health Score */}
         <Card>
           <CardHeader>
-            <CardTitle>3. Suggested daily workflow</CardTitle>
+            <CardTitle>3. Understanding Health Score</CardTitle>
             <CardDescription>
-              A simple routine you can follow to make the most out of {appName}.
+              How {appName} turns raw weight and headcount data into a single 1–100
+              score.
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-3 text-sm text-muted-foreground">
+          <CardContent className="space-y-4 text-sm text-muted-foreground">
+            <p>
+              Every month, {appName} looks at three components of your herd&apos;s
+              performance:
+            </p>
+            <ul className="list-disc space-y-1 pl-5">
+              <li>
+                <span className="font-medium">Change in total livestock</span> compared
+                to the previous month.
+              </li>
+              <li>
+                <span className="font-medium">Change in average weight</span> of all
+                animals.
+              </li>
+              <li>
+                <span className="font-medium">Percentage of animals that are stuck or losing weight</span> in
+                the current month.
+              </li>
+            </ul>
+            <p>
+              These values are normalized into risk scores between 0 and 1, weighted,
+              and combined into a monthly Health Score between 0 and 100 — higher
+              scores indicate healthier and more consistent growth.
+            </p>
             <div className="flex items-start gap-2">
               <CheckCircle2 className="mt-0.5 h-4 w-4 text-primary" />
-              <div>
-                <p className="font-medium text-foreground">Morning check</p>
-                <p>
-                  Review today&apos;s tasks and check the dashboard for any livestock with
-                  stagnant or declining weight trends.
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-2">
-              <CheckCircle2 className="mt-0.5 h-4 w-4 text-primary" />
-              <div>
-                <p className="font-medium text-foreground">Record new data</p>
-                <p>
-                  Enter new weight measurements and important notes after feeding or
-                  health checks. The more consistent your data, the better the insights.
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-2">
-              <CheckCircle2 className="mt-0.5 h-4 w-4 text-primary" />
-              <div>
-                <p className="font-medium text-foreground">Review performance</p>
-                <p>
-                  At the end of the week or month, use the dashboard metrics to evaluate
-                  growth performance and identify animals that may need extra attention.
-                </p>
-              </div>
+              <p>
+                In the charts, you can also view{" "}
+                <span className="font-medium">changes in Health Score</span> from month
+                to month, making it easier to catch sudden improvements or declines.
+              </p>
             </div>
           </CardContent>
         </Card>
 
-        {/* Help & legal */}
+        {/* 4. Help & support */}
         <Card>
           <CardHeader>
-            <CardTitle>4. Help & support</CardTitle>
+            <CardTitle>4. Help, documentation & legal</CardTitle>
             <CardDescription>
-              Where to go if you have questions, feedback, or need more assistance.
+              You can access these pages at any time — with or without being logged
+              in.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4 text-sm text-muted-foreground">
-            <div>
-              <p className="font-medium text-foreground">Contact us</p>
+            <div className="space-y-1">
+              <p className="font-medium text-foreground">Support & documentation</p>
               <p>
-                If you need help or want to share feedback, you can send us a message via
-                the{" "}
-                <Link href="/contacts" className="text-primary underline">
-                  Contact page
-                </Link>
-                . We usually respond within 1–2 business days.
+                If you have questions or want to explore more details:
               </p>
+              <ul className="list-disc space-y-1 pl-5">
+                <li>
+                  Visit{" "}
+                  <Link
+                    href="/support/get-help"
+                    className="text-primary underline"
+                  >
+                    Get Help
+                  </Link>{" "}
+                  for general assistance.
+                </li>
+                <li>
+                  Read{" "}
+                  <Link href="/support/faq" className="text-primary underline">
+                    FAQ
+                  </Link>{" "}
+                  for common questions and quick answers.
+                </li>
+                <li>
+                  Follow step-by-step guides in{" "}
+                  <Link href="/support/guides" className="text-primary underline">
+                    Guides
+                  </Link>
+                  .
+                </li>
+                <li>
+                  Reach out via{" "}
+                  <Link
+                    href="/support/contacts"
+                    className="text-primary underline"
+                  >
+                    Contacts
+                  </Link>{" "}
+                  if you need more direct support.
+                </li>
+              </ul>
             </div>
 
             <Separator />
 
-            <div>
+            <div className="space-y-1">
               <p className="font-medium text-foreground">Your data & privacy</p>
               <p>
                 For information about how we handle your data, please read our{" "}
@@ -233,23 +373,26 @@ export default function GuidePage() {
                 <Link href="/legal/terms" className="text-primary underline">
                   Terms of Service
                 </Link>
-                . We aim to keep your farm and livestock data safe and secure.
+                . These pages explain how your livestock and farm information are
+                stored and protected.
               </p>
-            </div>
-
-            <Separator />
-
-            <div className="flex flex-wrap gap-3">
-              <Button asChild variant="outline" size="sm">
-                <Link href="/main/dashboard">Open dashboard</Link>
-              </Button>
-              <Button asChild variant="ghost" size="sm">
-                <Link href="/">Back to home</Link>
-              </Button>
             </div>
           </CardContent>
         </Card>
+
+        {/* Bottom actions */}
+        <div className="flex flex-wrap items-center justify-center gap-3">
+          <Button asChild size="sm">
+            <Link href="/main/dashboard">Open dashboard</Link>
+          </Button>
+          <Button asChild size="sm" variant="outline">
+            <Link href="/demo">Try simulation</Link>
+          </Button>
+          <Button asChild size="sm" variant="ghost">
+            <Link href="/">Back to home</Link>
+          </Button>
+        </div>
       </div>
     </main>
-  )
+  );
 }

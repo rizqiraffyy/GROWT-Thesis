@@ -10,7 +10,6 @@ import {
   IconLayoutDashboard,
   IconTimelineEvent,
   IconWorld,
-  IconCalendarEvent,
   IconLifebuoy,
   IconHelpCircle,
   IconBook2,
@@ -125,11 +124,6 @@ const appData = {
       title: "Global",
       url: "/main/global",
       icon: IconWorld,
-    },
-    {
-      title: "Calendar",
-      url: "/main/calendar",
-      icon: IconCalendarEvent,
     },
   ] as NavItem[],
 }

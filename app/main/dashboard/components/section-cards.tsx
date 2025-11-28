@@ -86,19 +86,21 @@ export async function SectionCards() {
       : null;
 
   return (
-    <div className="grid grid-cols-1 gap-4 px-4 *:data-[slot=card]:bg-gradient-to-t *:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card *:data-[slot=card]:shadow-xs dark:*:data-[slot=card]:bg-card lg:px-6 @xl/main:grid-cols-2 @5xl/main:grid-cols-4">
+    <div className="grid grid-cols-2 gap-2 px-4 sm:grid-cols-1 sm:gap-4 @xl/main:grid-cols-2 @5xl/main:grid-cols-4 lg:px-6 *:data-[slot=card]:bg-gradient-to-t *:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card *:data-[slot=card]:shadow-xs dark:*:data-[slot=card]:bg-card">
       {/* 1) Total Livestock */}
-      <Card className="@container/card" data-slot="card">
+      <Card className="@container/card p-2 px-0 sm:p-4 sm:px-0" data-slot="card">
         <CardHeader>
-          <CardDescription>Total Livestock</CardDescription>
-          <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
+          <CardDescription className="text-xs sm:text-base">
+            Total Livestock
+          </CardDescription>
+          <CardTitle className="text-lg sm:text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
             {formatInt(totalLivestock)}
           </CardTitle>
           <CardAction>
             <Badge
               variant="outline"
               className={cn(
-                "flex items-center gap-1 border px-2 py-0.5 text-xs font-medium tabular-nums",
+                "flex items-center gap-1 border px-1.5 py-0.5 text-[10px] sm:text-xs font-medium tabular-nums",
                 getDeltaColorClasses(totalLivestockPct)
               )}
             >
@@ -107,7 +109,7 @@ export async function SectionCards() {
             </Badge>
           </CardAction>
         </CardHeader>
-        <CardFooter className="flex-col items-start gap-1.5 text-sm">
+        <CardFooter className="flex-col items-start gap-0.5 sm:gap-1 text-[10px] sm:text-sm font-medium tabular-nums">
           <div className="flex items-center gap-1 font-medium">
             Change vs last month:
             <span className="tabular-nums text-xs text-muted-foreground">
@@ -121,20 +123,20 @@ export async function SectionCards() {
       </Card>
 
       {/* 2) Average Weight */}
-      <Card className="@container/card" data-slot="card">
+      <Card className="@container/card p-2 px-0 sm:p-4 sm:px-0" data-slot="card">
         <CardHeader>
-          <CardDescription>Average Weight</CardDescription>
-
-          <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
+          <CardDescription className="text-xs sm:text-base">
+            Average Weight
+          </CardDescription>
+          <CardTitle className="text-lg sm:text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
             {avgWeight != null ? `${formatNumber(avgWeight, 1)} kg` : "–"}
           </CardTitle>
-
           <CardAction>
             {avgWeightPct != null ? (
               <Badge
                 variant="outline"
                 className={cn(
-                  "flex items-center gap-1 border px-2 py-0.5 text-xs font-medium tabular-nums",
+                  "flex items-center gap-1 border px-1.5 py-0.5 text-[10px] sm:text-xs font-medium tabular-nums",
                   getDeltaColorClasses(avgWeightPct)
                 )}
               >
@@ -144,15 +146,14 @@ export async function SectionCards() {
             ) : (
               <Badge
                 variant="outline"
-                className="flex items-center gap-1 border px-2 py-0.5 text-xs font-medium text-muted-foreground"
+                className="flex items-center gap-1 border px-1.5 py-0.5 text-[10px] sm:text-xs font-medium text-muted-foreground"
               >
                 <span>no prior data</span>
               </Badge>
             )}
           </CardAction>
         </CardHeader>
-
-        <CardFooter className="flex-col items-start gap-1.5 text-sm">
+        <CardFooter className="flex-col items-start gap-0.5 sm:gap-1 text-[10px] sm:text-sm font-medium tabular-nums">
           <div className="flex items-center gap-1 font-medium">
             Change vs last month:
             <span className="tabular-nums text-xs text-muted-foreground">
@@ -167,19 +168,20 @@ export async function SectionCards() {
         </CardFooter>
       </Card>
 
-
       {/* 3) Stuck & Loss */}
-      <Card className="@container/card" data-slot="card">
+      <Card className="@container/card p-2 px-0 sm:p-4 sm:px-0" data-slot="card">
         <CardHeader>
-          <CardDescription>Stuck & Loss Weight</CardDescription>
-          <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
+          <CardDescription className="text-xs sm:text-base">
+            Stuck &amp; Loss Weight
+          </CardDescription>
+          <CardTitle className="text-lg sm:text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
             {formatInt(stuckLossCount)}
           </CardTitle>
           <CardAction>
             <Badge
               variant="outline"
               className={cn(
-                "flex items-center gap-1 border px-2 py-0.5 text-xs font-medium tabular-nums",
+                "flex items-center gap-1 border px-1.5 py-0.5 text-[10px] sm:text-xs font-medium tabular-nums",
                 getDeltaColorClasses(stuckLossPct)
               )}
             >
@@ -188,7 +190,7 @@ export async function SectionCards() {
             </Badge>
           </CardAction>
         </CardHeader>
-        <CardFooter className="flex-col items-start gap-1.5 text-sm">
+        <CardFooter className="flex-col items-start gap-0.5 sm:gap-1 text-[10px] sm:text-sm font-medium tabular-nums">
           <div className="flex items-center gap-1 font-medium">
             Change vs last month:
             <span className="tabular-nums text-xs text-muted-foreground">
@@ -202,17 +204,19 @@ export async function SectionCards() {
       </Card>
 
       {/* 4) Health Score */}
-      <Card className="@container/card" data-slot="card">
+      <Card className="@container/card p-2 px-0 sm:p-4 sm:px-0" data-slot="card">
         <CardHeader>
-          <CardDescription>Health Score</CardDescription>
-          <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
+          <CardDescription className="text-xs sm:text-base">
+            Health Score
+          </CardDescription>
+          <CardTitle className="text-lg sm:text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
             {healthScoreCurrent != null ? healthScoreCurrent : "–"}
           </CardTitle>
           <CardAction>
             <Badge
               variant="outline"
               className={cn(
-                "flex items-center gap-1 border px-2 py-0.5 text-xs font-medium tabular-nums",
+                "flex items-center gap-1 border px-1.5 py-0.5 text-[10px] sm:text-xs font-medium tabular-nums",
                 getDeltaColorClasses(healthDelta)
               )}
             >
@@ -221,13 +225,13 @@ export async function SectionCards() {
             </Badge>
           </CardAction>
         </CardHeader>
-        <CardFooter className="flex-col items-start gap-1.5 text-sm">
+        <CardFooter className="flex-col items-start gap-0.5 sm:gap-1 text-[10px] sm:text-sm font-medium tabular-nums">
           <div className="flex items-center gap-1 font-medium">
             Month-over-month herd condition
           </div>
           <div className="text-xs text-muted-foreground">
             Composite score (0–100) based on growth, stable gains, and share of
-            animals without weight loss. Badge shows the change vs last month.
+            animals without weight loss.
           </div>
         </CardFooter>
       </Card>
