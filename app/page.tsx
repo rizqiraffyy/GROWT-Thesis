@@ -1,3 +1,8 @@
+"use client";
+
+import { useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -23,8 +28,44 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ModeToggle } from "@/components/dark-mode";
+import { getSupabaseBrowser } from "@/lib/supabase/client";
 
 export default function HomePage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // Handle redirect after Google OAuth (/?code=...&next=...)
+  useEffect(() => {
+    const run = async () => {
+      const supabase = getSupabaseBrowser();
+
+      // Check if Supabase already has a logged-in user
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      const nextParam = searchParams.get("next") || "/main/dashboard";
+
+      if (user) {
+        // User is authenticated → go to intended page
+        router.replace(
+          nextParam.startsWith("/") ? nextParam : "/main/dashboard",
+        );
+      } else {
+        // No user (or something failed) → back to Sign In
+        router.replace("/auth/signin");
+      }
+    };
+
+    const hasCode = searchParams.has("code");
+    const hasNext = searchParams.has("next");
+
+    // Only run this logic when coming back from OAuth / login flow
+    if (hasCode || hasNext) {
+      run();
+    }
+  }, [router, searchParams]);
+
   return (
     <main className="min-h-screen bg-gradient-to-b from-background via-background to-muted">
       {/* Navbar */}
@@ -127,8 +168,14 @@ export default function HomePage() {
 
           <div className="space-y-1 text-xs text-muted-foreground sm:text-sm">
             <p>✔ Designed for farmers, cooperatives, and research projects.</p>
-            <p>✔ No more manual notebooks — every log is stored safely in Supabase.</p>
-            <p>✔ One dashboard for livestock, logs, analytics, and global sharing.</p>
+            <p>
+              ✔ No more manual notebooks — every log is stored safely in
+              Supabase.
+            </p>
+            <p>
+              ✔ One dashboard for livestock, logs, analytics, and global
+              sharing.
+            </p>
           </div>
         </div>
 
@@ -152,7 +199,8 @@ export default function HomePage() {
                   <p className="font-medium">Capture data from RFID devices</p>
                   <p className="text-xs text-muted-foreground">
                     Each weighing record is linked to an RFID tag, complete with
-                    timestamp and livestock ID, and pushed directly to the cloud.
+                    timestamp and livestock ID, and pushed directly to the
+                    cloud.
                   </p>
                 </div>
               </div>
@@ -162,11 +210,13 @@ export default function HomePage() {
                   <LineChart className="h-4 w-4 text-primary" />
                 </div>
                 <div>
-                  <p className="font-medium">Track growth, risk &amp; Health Score</p>
+                  <p className="font-medium">
+                    Track growth, risk &amp; Health Score
+                  </p>
                   <p className="text-xs text-muted-foreground">
-                    Dashboards combine total livestock, average weight, stuck/loss
-                    animals, and a 1–100 Health Score that summarizes overall
-                    herd condition each month.
+                    Dashboards combine total livestock, average weight,
+                    stuck/loss animals, and a 1–100 Health Score that summarizes
+                    overall herd condition each month.
                   </p>
                 </div>
               </div>
@@ -176,11 +226,13 @@ export default function HomePage() {
                   <Database className="h-4 w-4 text-primary" />
                 </div>
                 <div>
-                  <p className="font-medium">Centralize farmers &amp; livestock data</p>
+                  <p className="font-medium">
+                    Centralize farmers &amp; livestock data
+                  </p>
                   <p className="text-xs text-muted-foreground">
-                    Manage farmers, individual animals, and their complete weighing
-                    history in one structured database — ready for analysis or
-                    research.
+                    Manage farmers, individual animals, and their complete
+                    weighing history in one structured database — ready for
+                    analysis or research.
                   </p>
                 </div>
               </div>
@@ -189,8 +241,8 @@ export default function HomePage() {
 
               <p className="text-[11px] text-muted-foreground">
                 Once you sign up, you&apos;ll be guided to complete your farmer
-                profile, add livestock data, connect RFID tags, and start logging
-                weights in just a few steps.
+                profile, add livestock data, connect RFID tags, and start
+                logging weights in just a few steps.
               </p>
             </CardContent>
           </Card>
@@ -218,22 +270,29 @@ export default function HomePage() {
             <Card className="border-dashed">
               <CardHeader className="flex flex-row items-center gap-3 pb-2">
                 <UserPlus className="h-4 w-4 text-primary" />
-                <CardTitle className="text-sm">1. Create &amp; log in</CardTitle>
+                <CardTitle className="text-sm">
+                  1. Create &amp; log in
+                </CardTitle>
               </CardHeader>
-              <CardContent className="text-xs text-muted-foreground space-y-1">
-                <p>Sign up with email or Google, then log in to access your dashboard.</p>
+              <CardContent className="space-y-1 text-xs text-muted-foreground">
+                <p>
+                  Sign up with email or Google, then log in to access your
+                  dashboard.
+                </p>
               </CardContent>
             </Card>
 
             <Card className="border-dashed">
               <CardHeader className="flex flex-row items-center gap-3 pb-2">
                 <SettingsIcon className="h-4 w-4 text-primary" />
-                <CardTitle className="text-sm">2. Complete settings</CardTitle>
+                <CardTitle className="text-sm">
+                  2. Complete settings
+                </CardTitle>
               </CardHeader>
-              <CardContent className="text-xs text-muted-foreground space-y-1">
+              <CardContent className="space-y-1 text-xs text-muted-foreground">
                 <p>
-                  Fill in your personal info and full address in the Settings page.
-                  This step unlocks livestock management.
+                  Fill in your personal info and full address in the Settings
+                  page. This step unlocks livestock management.
                 </p>
               </CardContent>
             </Card>
@@ -241,12 +300,14 @@ export default function HomePage() {
             <Card className="border-dashed">
               <CardHeader className="flex flex-row items-center gap-3 pb-2">
                 <PawPrint className="h-4 w-4 text-primary" />
-                <CardTitle className="text-sm">3. Add livestock &amp; RFID</CardTitle>
+                <CardTitle className="text-sm">
+                  3. Add livestock &amp; RFID
+                </CardTitle>
               </CardHeader>
-              <CardContent className="text-xs text-muted-foreground space-y-1">
+              <CardContent className="space-y-1 text-xs text-muted-foreground">
                 <p>
-                  Register each animal with its name, breed, sex, age, photo, and
-                  RFID tag that the IoT scale will use.
+                  Register each animal with its name, breed, sex, age, photo,
+                  and RFID tag that the IoT scale will use.
                 </p>
               </CardContent>
             </Card>
@@ -254,9 +315,11 @@ export default function HomePage() {
             <Card className="border-dashed">
               <CardHeader className="flex flex-row items-center gap-3 pb-2">
                 <RadioTower className="h-4 w-4 text-primary" />
-                <CardTitle className="text-sm">4. Start logging via IoT</CardTitle>
+                <CardTitle className="text-sm">
+                  4. Start logging via IoT
+                </CardTitle>
               </CardHeader>
-              <CardContent className="text-xs text-muted-foreground space-y-1">
+              <CardContent className="space-y-1 text-xs text-muted-foreground">
                 <p>
                   Once RFID is connected, the IoT weighing device can push every
                   new weight directly into Growt as a data log.
@@ -279,8 +342,8 @@ export default function HomePage() {
                 Main dashboard, data logs, and global view.
               </h2>
               <p className="text-sm text-muted-foreground">
-                Growt splits your data into three main pages so you can move from
-                individual animals to global performance in one click.
+                Growt splits your data into three main pages so you can move
+                from individual animals to global performance in one click.
               </p>
             </div>
 
@@ -307,8 +370,9 @@ export default function HomePage() {
                 <p className="font-medium">Global Page</p>
                 <p className="text-xs text-muted-foreground">
                   Explore publicly shared livestock data from all farmers: total
-                  shared livestock, global average weight, highest public record,
-                  and total public logs. Livestock details are read-only.
+                  shared livestock, global average weight, highest public
+                  record, and total public logs. Livestock details are
+                  read-only.
                 </p>
               </div>
             </div>
@@ -325,15 +389,15 @@ export default function HomePage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3 text-xs text-muted-foreground">
-              <p>
-                Each month, Growt looks at three things:
-              </p>
+              <p>Each month, Growt looks at three things:</p>
               <ul className="ml-4 list-disc space-y-1">
                 <li>
-                  How your <span className="font-medium">total livestock</span> changes.
+                  How your{" "}
+                  <span className="font-medium">total livestock</span> changes.
                 </li>
                 <li>
-                  How your <span className="font-medium">average weight</span> changes.
+                  How your{" "}
+                  <span className="font-medium">average weight</span> changes.
                 </li>
                 <li>
                   What percentage of animals are{" "}
@@ -348,7 +412,8 @@ export default function HomePage() {
               <p>
                 In the charts, you can also see the{" "}
                 <span className="font-medium">change in Health Score</span> from
-                month to month, so sudden improvements or drops are easy to spot.
+                month to month, so sudden improvements or drops are easy to
+                spot.
               </p>
 
               <Separator />
@@ -371,19 +436,31 @@ export default function HomePage() {
             <HelpCircle className="h-4 w-4" />
             <p className="flex flex-wrap items-center gap-1">
               Need help? Visit
-              <Link href="/support/get-help" className="font-medium hover:underline text-foreground">
+              <Link
+                href="/support/get-help"
+                className="font-medium text-foreground hover:underline"
+              >
                 Get Help
               </Link>
               ,
-              <Link href="/support/faq" className="font-medium hover:underline text-foreground">
+              <Link
+                href="/support/faq"
+                className="font-medium text-foreground hover:underline"
+              >
                 FAQ
               </Link>
               ,
-              <Link href="/support/guides" className="font-medium hover:underline text-foreground">
+              <Link
+                href="/support/guides"
+                className="font-medium text-foreground hover:underline"
+              >
                 Guides
               </Link>
               , or
-              <Link href="/support/contacts" className="font-medium hover:underline text-foreground">
+              <Link
+                href="/support/contacts"
+                className="font-medium text-foreground hover:underline"
+              >
                 Contacts
               </Link>
               .

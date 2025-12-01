@@ -30,7 +30,14 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`
+          ${geistSans.variable}
+          ${geistMono.variable}
+          antialiased
+          min-h-screen
+          h-[100dvh]
+          bg-background
+        `}
       >
         <ThemeProvider
           attribute="class"
@@ -38,13 +45,13 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          {children}
-
-          {/* Speed Insights */}
-          <SpeedInsights />
+          {/* konten utama: ambil sisa tinggi layar */}
+          <div className="flex-1 flex flex-col">
+            {children}
+          </div>
 
           {/* Global Footer */}
-          <footer className="py-6 mt-10 text-center text-xs bg-gradient-to-r from-primary/5 to-background text-muted-foreground rounded-t-xl">
+          <footer className="mt-10 py-6 text-center text-xs bg-gradient-to-r from-primary/5 to-background text-muted-foreground rounded-t-xl">
             <p className="font-medium">
               © {new Date().getFullYear()} Rizqi Raffy Imam Malik
             </p>
@@ -53,6 +60,9 @@ export default function RootLayout({
               Gadjah Mada • Electronics and Instrumentation Laboratory
             </p>
           </footer>
+
+          {/* Speed Insights */}
+          <SpeedInsights />
         </ThemeProvider>
       </body>
     </html>

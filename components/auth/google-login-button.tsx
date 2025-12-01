@@ -1,17 +1,17 @@
-"use client"
+"use client";
 
-import { useCallback, useState } from "react"
-import { Button } from "@/components/ui/button"
-import { getSupabaseBrowser } from "@/lib/supabase/client"
-import { Loader2 } from "lucide-react"
-import { cn } from "@/lib/utils"
+import { useCallback, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { getSupabaseBrowser } from "@/lib/supabase/client";
+import { Loader2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 type GoogleLoginButtonProps = {
-  redirect?: string
-  label?: string
-  className?: string
-  onError?: (message: string) => void
-}
+  redirect?: string;
+  label?: string;
+  className?: string;
+  onError?: (message: string) => void;
+};
 
 export function GoogleLoginButton({
   redirect = "/main/dashboard",
@@ -19,53 +19,52 @@ export function GoogleLoginButton({
   className,
   onError,
 }: GoogleLoginButtonProps) {
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(false);
 
   const handleGoogle = useCallback(async () => {
-    setLoading(true)
+    setLoading(true);
 
     try {
-      const supabase = getSupabaseBrowser()
+      const supabase = getSupabaseBrowser();
 
-      let siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"
-      if (typeof window !== "undefined") {
-        siteUrl = window.location.origin
-      }
+      // base URL: localhost di dev, vercel di prod
+      const siteUrl =
+        typeof window !== "undefined"
+          ? window.location.origin
+          : process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 
-      // note: sanitize redirect to avoid open redirect vulnerabilities
+      // pastikan redirect aman (relative path)
       const safeRedirect =
         redirect.startsWith("/") && !redirect.startsWith("//")
           ? redirect
-          : "/main/dashboard"
+          : "/main/dashboard";
 
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${siteUrl}/api/auth/callback?redirect=${encodeURIComponent(
-            safeRedirect,
-          )}`,
+          // Supabase akan balik ke "/" dengan param next=...
+          redirectTo: `${siteUrl}?next=${encodeURIComponent(safeRedirect)}`,
           queryParams: {
             prompt: "select_account",
             access_type: "offline",
           },
         },
-      })
+      });
 
       if (error) {
-        throw new Error("Unable to sign in with Google.")
+        throw new Error("Unable to sign in with Google.");
       }
-
-      // note: browser will redirect automatically; no need to unset loading
+      // browser akan redirect, jadi nggak perlu setLoading(false)
     } catch (err) {
       const message =
         err instanceof Error
           ? err.message || "Unable to sign in with Google."
-          : "Unable to sign in with Google."
+          : "Unable to sign in with Google.";
 
-      onError?.(message)
-      setLoading(false)
+      onError?.(message);
+      setLoading(false);
     }
-  }, [redirect, onError])
+  }, [redirect, onError]);
 
   return (
     <Button
@@ -78,7 +77,7 @@ export function GoogleLoginButton({
       className={cn(
         "w-full transition-all",
         loading && "cursor-wait opacity-90",
-        className,
+        className
       )}
       rel="noopener noreferrer"
     >
@@ -106,5 +105,5 @@ export function GoogleLoginButton({
         </>
       )}
     </Button>
-  )
+  );
 }

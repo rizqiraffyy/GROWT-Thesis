@@ -4,7 +4,7 @@ import DataTable from "./components/data-table";
 import { getDashboardMonthlySeries } from "./components/data-table/data/logs";
 
 export default async function Page() {
-  const chartData = await getDashboardMonthlySeries(12); // 12 bulan untuk chart
+  const chartData = await getDashboardMonthlySeries("all");
 
   return (
     <div className="flex flex-1 flex-col">

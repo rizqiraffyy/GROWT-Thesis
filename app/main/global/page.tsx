@@ -10,9 +10,9 @@ export default async function TaskPage() {
   <div>
     {/* Cards */}
     <GlobalSectionCards />
-    <div className="flex h-full flex-1 flex-col gap-4 p-4 pt-1">
+    <div className="flex flex-1 flex-col gap-4 p-4 pt-1">
       {/* Table */}
-      <div className="flex-1 overflow-hidden">
+      <div className="flex flex-1 flex-col gap-8 md:flex">
         <DataTable data={tasks} columns={columns} />
       </div>
     </div>

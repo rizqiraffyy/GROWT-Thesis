@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { Area, AreaChart, CartesianGrid, XAxis } from "recharts";
+import { YAxis } from "recharts";
 
 import { useIsMobile } from "@/hooks/use-mobile";
 import {
@@ -28,22 +29,23 @@ import {
 import type { DashboardMonthlyPoint } from "./data-table/data/logs";
 
 type TimeRange = "3m" | "6m" | "12m" | "18m" | "24m" | "all";
+type ValueMode = "percent" | "raw";
 
 const chartConfig = {
   totalLivestockPct: {
-    label: "Total livestock MoM",
+    label: "Total livestock",
     color: "var(--chart-1)",
   },
   avgWeightPct: {
-    label: "Average weight MoM",
+    label: "Average weight",
     color: "var(--chart-2)",
   },
   stuckLossPct: {
-    label: "Stuck & loss share",
+    label: "Stuck & loss",
     color: "var(--chart-3)",
   },
   healthScoreDelta: {
-    label: "Health score (0–100)",
+    label: "Health score",
     color: "var(--chart-4)",
   },
 } satisfies ChartConfig;
@@ -57,6 +59,7 @@ interface ChartAreaInteractiveProps {
 export function ChartAreaInteractive({ data }: ChartAreaInteractiveProps) {
   const isMobile = useIsMobile();
   const [timeRange, setTimeRange] = React.useState<TimeRange>("12m");
+  const [valueMode, setValueMode] = React.useState<ValueMode>("percent"); // ⬅️ mode baru
 
   React.useEffect(() => {
     if (isMobile) {
@@ -86,22 +89,71 @@ export function ChartAreaInteractive({ data }: ChartAreaInteractiveProps) {
               Month-over-month trends for herd size, weight, risk, and health score.
             </CardDescription>
           </div>
-
-          <CardAction className="flex flex-col gap-2 @[540px]/card:flex-row @[540px]/card:items-center">
+          <CardAction
+            className="
+              flex flex-row flex-wrap items-center justify-end
+              gap-2
+            "
+          >
+            {/* Select: time range */}
             <Select
               value={timeRange}
               onValueChange={(value) => setTimeRange(value as TimeRange)}
             >
-              <SelectTrigger className="w-40" size="sm">
+              <SelectTrigger
+                size="sm"
+                className="
+                  min-w-[130px]
+                  w-[130px]
+                  text-xs
+                  @[540px]/card:w-40
+                  @[540px]/card:text-sm
+                "
+              >
                 <SelectValue placeholder="Time range" />
               </SelectTrigger>
-              <SelectContent className="rounded-xl">
+              <SelectContent
+                className="
+                  rounded-xl
+                  text-xs
+                  @[540px]/card:text-sm
+                "
+              >
                 <SelectItem value="3m">Last 3 months</SelectItem>
                 <SelectItem value="6m">Last 6 months</SelectItem>
                 <SelectItem value="12m">Last 12 months</SelectItem>
                 <SelectItem value="18m">Last 1.5 years</SelectItem>
                 <SelectItem value="24m">Last 2 years</SelectItem>
                 <SelectItem value="all">All</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {/* Select: value type (raw / %) */}
+            <Select
+              value={valueMode}
+              onValueChange={(value) => setValueMode(value as ValueMode)}
+            >
+              <SelectTrigger
+                size="sm"
+                className="
+                  min-w-[130px]
+                  w-[130px]
+                  text-xs
+                  @[540px]/card:w-40
+                  @[540px]/card:text-sm
+                "
+              >
+                <SelectValue placeholder="Value type" />
+              </SelectTrigger>
+              <SelectContent
+                className="
+                  rounded-xl
+                  text-xs
+                  @[540px]/card:text-sm
+                "
+              >
+                <SelectItem value="percent">Percentage (MoM)</SelectItem>
+                <SelectItem value="raw">Raw value</SelectItem>
               </SelectContent>
             </Select>
           </CardAction>
@@ -182,14 +234,25 @@ export function ChartAreaInteractive({ data }: ChartAreaInteractiveProps) {
                 minTickGap={24}
               />
 
+              <YAxis
+                tickLine={false}
+                axisLine={false}
+                tickMargin={8}
+                tickFormatter={(val) => {
+                  if (valueMode === "percent") {
+                    return `${Number(val).toFixed(0)}%`;
+                  }
+                  return Number(val).toFixed(0);
+                }}
+              />
               <ChartTooltip
                 cursor={false}
                 content={<ChartTooltipContent indicator="dot" />}
               />
 
-              {/* 4 metrics */}
+              {/* 4 metrics: dataKey switch based on valueMode */}
               <Area
-                dataKey="totalLivestockPct"
+                dataKey={valueMode === "percent" ? "totalLivestockPct" : "totalLivestock"}
                 name="Total livestock"
                 type="natural"
                 fill="url(#fillTotal)"
@@ -197,7 +260,7 @@ export function ChartAreaInteractive({ data }: ChartAreaInteractiveProps) {
                 strokeWidth={2}
               />
               <Area
-                dataKey="avgWeightPct"
+                dataKey={valueMode === "percent" ? "avgWeightPct" : "avgWeight"}
                 name="Average Weight"
                 type="natural"
                 fill="url(#fillAvg)"
@@ -205,7 +268,7 @@ export function ChartAreaInteractive({ data }: ChartAreaInteractiveProps) {
                 strokeWidth={2}
               />
               <Area
-                dataKey="stuckLossPct"
+                dataKey={valueMode === "percent" ? "stuckLossPct" : "stuckLossCount"}
                 name="Stuck & Loss"
                 type="natural"
                 fill="url(#fillStuck)"
@@ -213,7 +276,7 @@ export function ChartAreaInteractive({ data }: ChartAreaInteractiveProps) {
                 strokeWidth={2}
               />
               <Area
-                dataKey="healthScoreDelta"
+                dataKey={valueMode === "percent" ? "healthScoreDelta" : "healthScore"}
                 name="Health Score"
                 type="natural"
                 fill="url(#fillHealth)"

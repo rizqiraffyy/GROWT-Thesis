@@ -148,7 +148,7 @@ export async function SectionCards() {
                 variant="outline"
                 className="flex items-center gap-1 border px-1.5 py-0.5 text-[10px] sm:text-xs font-medium text-muted-foreground"
               >
-                <span>no prior data</span>
+                <span>-</span>
               </Badge>
             )}
           </CardAction>

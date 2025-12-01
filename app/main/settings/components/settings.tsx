@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import type { User } from "@supabase/supabase-js";
 import { getSupabaseBrowser } from "@/lib/supabase/client";
 import { z } from "zod";
@@ -27,6 +27,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Slider } from "@/components/ui/slider";
+import Cropper, { Area } from "react-easy-crop";
 import { cn } from "@/lib/utils";
 
 /* ========= Types ========= */
@@ -99,6 +107,54 @@ function formatJoined(createdAt?: string) {
 
 function unmaskPhone(v: string) {
   return v.replace(/[^\d+]/g, "");
+}
+
+// Helper: crop image using canvas and return a File
+async function getCroppedFile(
+  imageSrc: string,
+  cropArea: Area,
+  originalFile: File,
+): Promise<File> {
+  const image = new window.Image();
+  image.src = imageSrc;
+  // Needed for cross-origin images (Supabase URLs etc.)
+  image.crossOrigin = "anonymous";
+
+  await new Promise((resolve, reject) => {
+    image.onload = () => resolve(true);
+    image.onerror = reject;
+  });
+
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Could not get canvas context");
+
+  canvas.width = cropArea.width;
+  canvas.height = cropArea.height;
+
+  ctx.drawImage(
+    image,
+    cropArea.x,
+    cropArea.y,
+    cropArea.width,
+    cropArea.height,
+    0,
+    0,
+    cropArea.width,
+    cropArea.height,
+  );
+
+  // Convert canvas back to File
+  const blob: Blob = await new Promise((resolve) =>
+    canvas.toBlob((b) => resolve(b as Blob), originalFile.type || "image/jpeg"),
+  );
+
+  const ext = originalFile.name.split(".").pop() || "jpg";
+  const croppedFile = new File([blob], `cropped-${Date.now()}.${ext}`, {
+    type: originalFile.type || "image/jpeg",
+  });
+
+  return croppedFile;
 }
 
 /* ====== Zod Schemas ====== */
@@ -388,52 +444,109 @@ export default function ProfileContent() {
 
   /* ========= Avatar upload ========= */
 
-  const handleAvatarUpload = async (file: File) => {
-    if (!user) return;
-    try {
-      setAvatarUploading(true);
-      setAvatarPreview(URL.createObjectURL(file));
+  const [cropDialogOpen, setCropDialogOpen] = useState(false);
+  const [rawFile, setRawFile] = useState<File | null>(null);
+  const [rawPreviewUrl, setRawPreviewUrl] = useState<string | null>(null);
+  const [crop, setCrop] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
+  const [confirmingCrop, setConfirmingCrop] = useState(false);
+  
+  const handleAvatarUpload = useCallback(
+    async (file: File) => {
+      if (!user) return;
+      try {
+        setAvatarUploading(true);
+        setAvatarPreview(URL.createObjectURL(file));
 
-      const bucket = "profile-photos";
-      const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
-      const path = `${user.id}/${Date.now()}_${crypto.randomUUID()}.${ext}`;
+        const bucket = "profile-photos";
+        const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+        const path = `${user.id}/${Date.now()}_${crypto.randomUUID()}.${ext}`;
 
-      const { error: upErr } = await supabase.storage
-        .from(bucket)
-        .upload(path, file, {
-          cacheControl: "3600",
-          upsert: false,
-          contentType: file.type || `image/${ext}`,
+        const { error: upErr } = await supabase.storage
+          .from(bucket)
+          .upload(path, file, {
+            cacheControl: "3600",
+            upsert: false,
+            contentType: file.type || `image/${ext}`,
+          });
+
+        if (upErr) {
+          console.error("[avatar upload error]", upErr);
+          alert(`Avatar upload failed: ${upErr.message ?? "Unknown error"}`);
+          return;
+        }
+
+        const { data: pub } = supabase.storage.from(bucket).getPublicUrl(path);
+        if (!pub?.publicUrl) {
+          alert("Could not get avatar public URL.");
+          return;
+        }
+
+        setAvatarUrl(pub.publicUrl);
+
+        const { error: updErr } = await supabase.auth.updateUser({
+          data: { avatar_url: pub.publicUrl },
         });
+        if (updErr) {
+          console.error("[update user avatar error]", updErr);
+          alert("Avatar uploaded, but failed to update profile.");
+        }
 
-      if (upErr) {
-        console.error("[avatar upload error]", upErr);
-        alert(`Avatar upload failed: ${upErr.message ?? "Unknown error"}`);
-        return;
+        const inputEl = document.getElementById(
+          "avatarUpload",
+        ) as HTMLInputElement | null;
+        if (inputEl) inputEl.value = "";
+      } finally {
+        setAvatarUploading(false);
       }
+    },
+    [supabase, user],
+  );
 
-      const { data: pub } = supabase.storage.from(bucket).getPublicUrl(path);
-      if (!pub?.publicUrl) {
-        alert("Could not get avatar public URL.");
-        return;
-      }
-
-      setAvatarUrl(pub.publicUrl);
-
-      const { error: updErr } = await supabase.auth.updateUser({
-        data: { avatar_url: pub.publicUrl },
-      });
-      if (updErr) {
-        console.error("[update user avatar error]", updErr);
-        alert("Avatar uploaded, but failed to update profile.");
-      }
-
-      const inputEl = document.getElementById("avatarUpload") as HTMLInputElement | null;
-      if (inputEl) inputEl.value = "";
-    } finally {
-      setAvatarUploading(false);
-    }
+  // When user picks a file → open crop dialog instead of uploading directly
+  const handleFileSelected = (file: File) => {
+    setRawFile(file);
+    const url = URL.createObjectURL(file);
+    setRawPreviewUrl(url);
+    setCrop({ x: 0, y: 0 });
+    setZoom(1);
+    setCropDialogOpen(true);
   };
+
+  const onCropComplete = useCallback(
+    (_: Area, croppedPixels: Area) => {
+      setCroppedAreaPixels(croppedPixels);
+    },
+    [],
+  );
+
+  const handleConfirmCrop = useCallback(async () => {
+    if (!rawFile || !rawPreviewUrl || !croppedAreaPixels) return;
+    try {
+      setConfirmingCrop(true);
+      const croppedFile = await getCroppedFile(
+        rawPreviewUrl,
+        croppedAreaPixels,
+        rawFile,
+      );
+      await handleAvatarUpload(croppedFile);
+      setCropDialogOpen(false);
+      setRawFile(null);
+      setRawPreviewUrl(null);
+    } catch (e) {
+      console.error("[avatar crop confirm error]", e);
+      alert("Failed to crop avatar. Please try again.");
+    } finally {
+      setConfirmingCrop(false);
+    }
+  }, [rawFile, rawPreviewUrl, croppedAreaPixels, handleAvatarUpload]);
+  // cleanup object URL on unmount / change
+  useEffect(() => {
+    return () => {
+      if (rawPreviewUrl) URL.revokeObjectURL(rawPreviewUrl);
+    };
+  }, [rawPreviewUrl]);
 
   /* ========= Save handlers ========= */
 
@@ -528,7 +641,7 @@ export default function ProfileContent() {
           <section className="grid gap-4 sm:grid-cols-[auto,minmax(0,1fr)] sm:items-center">
             <div className="flex flex-col items-center gap-3 sm:items-start">
               <Avatar className="h-24 w-24 sm:h-28 sm:w-28 ring-2 ring-muted">
-                <AvatarImage src={avatarPreview || avatarUrl || ""} />
+                <AvatarImage src={avatarPreview || avatarUrl || undefined} />
                 <AvatarFallback className="bg-muted text-lg font-semibold">
                   {display.name?.charAt(0)?.toUpperCase() || "U"}
                 </AvatarFallback>
@@ -547,35 +660,137 @@ export default function ProfileContent() {
                 </p>
               </div>
 
-              <div className="flex flex-wrap items-center gap-2">
-                <Input
-                  type="file"
-                  accept="image/*"
-                  id="avatarUpload"
-                  className="hidden"
-                  onChange={async (e) => {
-                    const f = e.target.files?.[0];
-                    if (f) await handleAvatarUpload(f);
-                  }}
-                />
-                <Button size="sm" asChild disabled={avatarUploading}>
-                  <label
-                    htmlFor="avatarUpload"
-                    className="flex cursor-pointer items-center gap-2"
+              <div className="flex flex-col gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Input
+                    type="file"
+                    accept="image/*"
+                    id="avatarUpload"
+                    className="hidden"
+                    onChange={async (e) => {
+                      const f = e.target.files?.[0];
+                      if (f) handleFileSelected(f); // ⬅️ open crop dialog instead of direct upload
+                    }}
+                  />
+                  <Button size="sm" asChild disabled={avatarUploading}>
+                    <label
+                      htmlFor="avatarUpload"
+                      className="flex cursor-pointer items-center gap-2"
+                    >
+                      {avatarUploading ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Upload className="h-4 w-4" />
+                      )}
+                      {avatarUploading ? "Uploading…" : "Change photo"}
+                    </label>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    type="button"
+                    onClick={async () => {
+                      // clear both preview + uploaded URL
+                      setAvatarPreview(undefined);
+                      setAvatarUrl(undefined);
+                      const inputEl = document.getElementById(
+                        "avatarUpload",
+                      ) as HTMLInputElement | null;
+                      if (inputEl) inputEl.value = "";
+                      // Optional: clear avatar_url di Supabase metadata
+                      try {
+                        const { error } = await supabase.auth.updateUser({
+                          data: { avatar_url: null },
+                        });
+                        if (error) {
+                          console.error("[avatar remove error]", error);
+                          alert("Avatar removed locally, but failed to update profile.");
+                        }
+                      } catch (e) {
+                        console.error("[avatar remove fatal error]", e);
+                      }
+                    }}
+                    disabled={avatarUploading || (!avatarPreview && !avatarUrl)}
                   >
-                    {avatarUploading ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Upload className="h-4 w-4" />
-                    )}
-                    {avatarUploading ? "Uploading…" : "Change photo"}
-                  </label>
-                </Button>
+                    Remove
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Recommended formats:{" "}
+                  <span className="font-medium">JPG / PNG</span>, max size around{" "}
+                  <span className="font-medium">5 MB</span>.
+                </p>
               </div>
             </div>
           </section>
         </CardContent>
       </Card>
+
+      {/* Crop dialog */}
+      <Dialog open={cropDialogOpen} onOpenChange={setCropDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Adjust your avatar</DialogTitle>
+          </DialogHeader>
+
+          <div className="relative mt-3 aspect-square w-full overflow-hidden rounded-lg bg-muted">
+            {rawPreviewUrl && (
+              <Cropper
+                image={rawPreviewUrl}
+                crop={crop}
+                zoom={zoom}
+                aspect={1} // square avatar
+                onCropChange={setCrop}
+                onZoomChange={(z) => setZoom(z)}
+                onCropComplete={onCropComplete}
+              />
+            )}
+          </div>
+
+          <div className="mt-3 space-y-1">
+            <p className="text-xs font-medium text-muted-foreground">
+              Zoom
+            </p>
+            <Slider
+              min={1}
+              max={3}
+              step={0.1}
+              value={[zoom]}
+              onValueChange={([z]) => setZoom(z)}
+            />
+          </div>
+
+          <DialogFooter className="mt-4 flex gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setCropDialogOpen(false);
+                setRawFile(null);
+                setRawPreviewUrl(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              onClick={handleConfirmCrop}
+              disabled={confirmingCrop}
+            >
+              {confirmingCrop ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Saving…
+                </>
+              ) : (
+                "Save avatar"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* ===== Card 2: Personal information ===== */}
       <Card>

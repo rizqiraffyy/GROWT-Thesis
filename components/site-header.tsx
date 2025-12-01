@@ -53,11 +53,7 @@ export function SiteHeader({ user }: { user: UserDisplay }) {
 
       <div className="ml-auto flex items-center gap-2">
         <ModeToggle />
-
-        {/* hide user menu in mobile */}
-        <div className="hidden sm:flex">
-          <NavUser user={user} />
-        </div>
+        <NavUser user={user} />
       </div>
     </header>
   );

@@ -392,7 +392,7 @@ function clamp01(x: number): number {
 }
 
 export async function getDashboardMonthlySeries(
-  maxMonths = 12
+  maxMonths: number | "all" = 12
 ): Promise<DashboardMonthlyPoint[]> {
   const allTasks = await getTasks(); // sudah ada status, delta, dll
 
@@ -530,6 +530,11 @@ export async function getDashboardMonthlySeries(
   }
 
   // 4) Potong ke maxMonths terakhir
+  if (maxMonths === "all") {
+    return monthly;
+  }
+
+
   const sliced =
     monthly.length > maxMonths
       ? monthly.slice(monthly.length - maxMonths)
