@@ -3,6 +3,28 @@ import { barn } from '@lucide/lab';
 
 import { SignupForm } from "./components/signup-form"
 
+import { redirect } from "next/navigation";
+import { getSupabaseServerReadOnly } from "@/lib/supabase/server";
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+export async function generateMetadata() {
+  const supabase = await getSupabaseServerReadOnly();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (user) {
+    // sudah login → tendang ke main
+    redirect("/main/dashboard");
+  }
+
+  return {
+    title: "Sign Up - GROWT",
+    description: "Create a new GROWT account.",
+  };
+}
+
 export default function SignupPage() {
   return (
     <div className="bg-muted flex min-h-svh flex-col items-center justify-center gap-6 p-6 md:p-10">

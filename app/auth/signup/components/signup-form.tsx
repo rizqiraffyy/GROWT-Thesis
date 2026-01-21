@@ -22,31 +22,28 @@ import {
   FieldDescription,
   FieldGroup,
   FieldLabel,
-  FieldSeparator
+  FieldSeparator,
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { GoogleLoginButton } from "@/components/auth/google-login-button"
 
-// note: keep schema in sync with API signup route (email trimmed + lowercased)
+// catatan: samakan skema dengan API signup (email di-trim + lowercase)
 const signupSchema = z
   .object({
-    name: z
-      .string()
-      .min(2, "Name is too short")
-      .max(100, "Name is too long"),
+    name: z.string().min(2, "Nama terlalu pendek").max(100, "Nama terlalu panjang"),
     email: z
       .string()
-      .min(1, "Email is required")
-      .email("Enter a valid email")
+      .min(1, "Email wajib diisi")
+      .email("Masukkan email yang valid")
       .transform((v) => v.trim().toLowerCase()),
     password: z
       .string()
-      .min(6, "Password must be at least 6 characters")
-      .max(64, "Password too long"),
-    confirmPassword: z.string().min(1, "Please confirm your password"),
+      .min(6, "Kata sandi minimal 6 karakter")
+      .max(64, "Kata sandi terlalu panjang"),
+    confirmPassword: z.string().min(1, "Konfirmasi kata sandi dulu, ya"),
   })
   .refine((data) => data.password === data.confirmPassword, {
-    message: "Passwords do not match",
+    message: "Konfirmasi kata sandi tidak sama",
     path: ["confirmPassword"],
   })
 
@@ -68,7 +65,7 @@ export function SignupForm({
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [errorMessage, setErrorMessage] = useState<string | null>(null) // note: shared error area for API + Google
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   const {
     register,
@@ -76,7 +73,7 @@ export function SignupForm({
     formState: { errors, isValid },
   } = useForm<SignupData>({
     resolver: zodResolver(signupSchema),
-    mode: "onChange", // note: live validation + disable submit until valid
+    mode: "onChange",
   })
 
   const onSubmit = async (data: SignupData) => {
@@ -87,7 +84,7 @@ export function SignupForm({
       const res = await fetch("/api/auth/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        // note: we send all fields; backend will ignore confirmPassword
+        // catatan: kirim semua field; backend akan mengabaikan confirmPassword
         body: JSON.stringify(data),
       })
 
@@ -95,23 +92,22 @@ export function SignupForm({
       try {
         result = (await res.json()) as SignupResponse
       } catch {
-        // note: if JSON parsing fails, treat as generic failure
         result = null
       }
 
       if (!res.ok || !result?.success) {
         throw new Error(
-          result?.error || "Failed to create account. Please try again.",
+          result?.error || "Gagal membuat akun. Coba lagi, ya.",
         )
       }
 
-      // note: let the server decide destination (dashboard / signin?checkEmail=1)
+      // server yang menentukan tujuan (dashboard / signin?checkEmail=1, dll)
       router.push(result.redirect ?? "/auth/check-email")
     } catch (error: unknown) {
       const message =
         error instanceof Error
           ? error.message
-          : "An unexpected error occurred. Please try again later."
+          : "Terjadi kendala. Silakan coba lagi beberapa saat."
       setErrorMessage(message)
     } finally {
       setLoading(false)
@@ -120,24 +116,23 @@ export function SignupForm({
 
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
-      {/* note: theme toggle pinned top-right, same as login form */}
+      {/* toggle tema di kanan atas */}
       <div className="absolute right-4 top-4 z-10">
         <ModeToggle />
       </div>
 
       <Card>
         <CardHeader className="text-center">
-          <CardTitle className="text-xl">Create your account</CardTitle>
+          <CardTitle className="text-xl">Buat Akun Baru</CardTitle>
           <CardDescription>
-            Join us and track your livestock growth effectively!
+            Daftar sekarang agar pencatatan pertumbuhan ternak Anda terkontrol.
           </CardDescription>
         </CardHeader>
 
         <CardContent>
-          {/* note: proper form submit (same pattern as login form) */}
           <form onSubmit={handleSubmit(onSubmit)}>
             <FieldGroup>
-              {/* Global error (API / network / Google auth) */}
+              {/* error umum (API / network / Google auth) */}
               {errorMessage && (
                 <div
                   role="alert"
@@ -147,27 +142,26 @@ export function SignupForm({
                 </div>
               )}
 
-              {/* Google signup — same component & pattern as signin */}
+              {/* Google signup */}
               <Field>
                 <GoogleLoginButton
                   redirect="/main/dashboard"
-                  label="Continue with Google"
-                  // note: surface Google auth error into the same error area
+                  label="Lanjut dengan Google"
                   onError={(msg) => setErrorMessage(msg)}
                 />
               </Field>
 
               <FieldSeparator className="*:data-[slot=field-separator-content]:bg-card">
-                Or continue with email
+                Atau daftar dengan email
               </FieldSeparator>
 
-              {/* Full name */}
+              {/* Nama lengkap */}
               <Field>
-                <FieldLabel htmlFor="name">Full Name</FieldLabel>
+                <FieldLabel htmlFor="name">Nama lengkap</FieldLabel>
                 <Input
                   id="name"
                   type="text"
-                  placeholder="Enter your full name"
+                  placeholder="Masukkan nama lengkap"
                   {...register("name")}
                   className={cn(
                     errors.name && "border-red-500 focus-visible:ring-red-500",
@@ -188,7 +182,7 @@ export function SignupForm({
                 <Input
                   id="email"
                   type="email"
-                  placeholder="Use a valid email (e.g., example@mail.com)"
+                  placeholder="Gunakan email aktif (contoh: contoh@mail.com)"
                   {...register("email")}
                   className={cn(
                     errors.email && "border-red-500 focus-visible:ring-red-500",
@@ -203,16 +197,16 @@ export function SignupForm({
                 )}
               </Field>
 
-              {/* Password + Confirm Password (responsive grid) */}
+              {/* Password + Konfirmasi (grid responsif) */}
               <Field className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 {/* Password */}
                 <Field>
-                  <FieldLabel htmlFor="password">Password</FieldLabel>
+                  <FieldLabel htmlFor="password">Kata sandi</FieldLabel>
                   <div className="relative">
                     <Input
                       id="password"
                       type={showPassword ? "text" : "password"}
-                      placeholder="Enter password"
+                      placeholder="Buat kata sandi"
                       {...register("password")}
                       className={cn(
                         errors.password &&
@@ -226,6 +220,9 @@ export function SignupForm({
                       onClick={() => setShowPassword((v) => !v)}
                       disabled={loading}
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                      aria-label={
+                        showPassword ? "Sembunyikan kata sandi" : "Tampilkan kata sandi"
+                      }
                     >
                       {showPassword ? (
                         <EyeOff className="h-4 w-4" />
@@ -241,16 +238,16 @@ export function SignupForm({
                   )}
                 </Field>
 
-                {/* Confirm Password */}
+                {/* Konfirmasi Password */}
                 <Field>
                   <FieldLabel htmlFor="confirm-password">
-                    Confirm Password
+                    Konfirmasi kata sandi
                   </FieldLabel>
                   <div className="relative">
                     <Input
                       id="confirm-password"
                       type={showConfirm ? "text" : "password"}
-                      placeholder="Re-enter password"
+                      placeholder="Ulangi kata sandi"
                       {...register("confirmPassword")}
                       className={cn(
                         errors.confirmPassword &&
@@ -264,6 +261,11 @@ export function SignupForm({
                       onClick={() => setShowConfirm((v) => !v)}
                       disabled={loading}
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                      aria-label={
+                        showConfirm
+                          ? "Sembunyikan konfirmasi kata sandi"
+                          : "Tampilkan konfirmasi kata sandi"
+                      }
                     >
                       {showConfirm ? (
                         <EyeOff className="h-4 w-4" />
@@ -281,22 +283,23 @@ export function SignupForm({
               </Field>
 
               <FieldDescription>
-                Password must be at least 6 characters long.
+                Kata sandi minimal 6 karakter.
               </FieldDescription>
 
-              {/* Submit button */}
+              {/* Submit */}
               <Field>
                 <Button
                   type="submit"
                   disabled={!isValid || loading}
                   className="w-full"
                 >
-                  {loading ? "Creating Account..." : "Create Account"}
+                  {loading ? "Sedang membuat akun..." : "Daftar"}
                 </Button>
+
                 <FieldDescription className="text-center">
-                  Already have an account?{" "}
+                  Sudah punya akun?{" "}
                   <a href="/auth/signin" className="text-primary">
-                    Sign in
+                    Masuk
                   </a>
                 </FieldDescription>
               </Field>
@@ -306,13 +309,13 @@ export function SignupForm({
       </Card>
 
       <FieldDescription className="px-6 text-center">
-        By clicking continue, you agree to our{" "}
-        <a href="/legal/terms" className="underline">
-          Terms of Service
+        Dengan melanjutkan, Anda menyetujui{" "}
+        <a href="/legal/syarat" className="underline">
+          Syarat Layanan
         </a>{" "}
-        and{" "}
-        <a href="/legal/privacy" className="underline">
-          Privacy Policy
+        serta{" "}
+        <a href="/legal/privasi" className="underline">
+          Kebijakan Privasi
         </a>
         .
       </FieldDescription>

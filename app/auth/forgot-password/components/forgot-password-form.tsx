@@ -15,26 +15,21 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import {
-  Field,
-  FieldDescription,
-  FieldGroup,
-  FieldLabel,
-} from "@/components/ui/field"
+import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 
-// note: keep schema consistent with API → trim + lowercase
+// catatan: samakan skema dengan API → trim + lowercase
 const forgotSchema = z.object({
   email: z
     .string()
-    .min(1, "Email is required")
-    .email("Please enter a valid email address")
+    .min(1, "Email wajib diisi")
+    .email("Masukkan email yang valid")
     .transform((v) => v.trim().toLowerCase()),
 })
 
 type ForgotData = z.infer<typeof forgotSchema>
 
-// note: typed response instead of `any`
+// catatan: typed response
 interface ForgotPasswordApiResponse {
   error?: string
   success?: boolean
@@ -53,7 +48,7 @@ export function ForgotPasswordForm(props: React.ComponentProps<"div">) {
     reset,
   } = useForm<ForgotData>({
     resolver: zodResolver(forgotSchema),
-    mode: "onChange", // note: live validation + button disabled until valid
+    mode: "onChange",
   })
 
   const onSubmit = async ({ email }: ForgotData) => {
@@ -76,17 +71,17 @@ export function ForgotPasswordForm(props: React.ComponentProps<"div">) {
       }
 
       if (!res.ok) {
-        throw new Error(json?.error || "Failed to send reset email.")
+        throw new Error(json?.error || "Gagal mengirim email reset kata sandi.")
       }
 
-      // note: match API response: success even if email doesn't exist
+      // catatan: sesuai API — tetap sukses meski email tidak terdaftar
       setSuccessMessage(
-        "If your email is registered, we’ve sent a password reset link to your inbox.",
+        "Kalau email kamu terdaftar, kami sudah mengirim tautan reset kata sandi ke inbox kamu.",
       )
 
       reset()
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Unexpected error"
+      const msg = err instanceof Error ? err.message : "Terjadi kendala."
       setErrorMessage(msg)
     } finally {
       setLoading(false)
@@ -95,33 +90,32 @@ export function ForgotPasswordForm(props: React.ComponentProps<"div">) {
 
   return (
     <div className={cn("flex flex-col gap-6")} {...props}>
-      {/* note: match signin/signup styling */}
+      {/* toggle tema di kanan atas */}
       <div className="absolute right-4 top-4 z-10">
         <ModeToggle />
       </div>
 
       <Card>
         <CardHeader className="text-center">
-          <CardTitle className="text-xl">Forgot your password?</CardTitle>
+          <CardTitle className="text-xl">Lupa kata sandi?</CardTitle>
           <CardDescription>
-            Enter your registered email and we&apos;ll send you a reset link.
+            Masukkan email yang terdaftar, nanti kami kirim tautan untuk reset kata sandi.
           </CardDescription>
         </CardHeader>
 
         <CardContent>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <FieldGroup>
-              {/* Email Field */}
+              {/* Email */}
               <Field>
                 <FieldLabel htmlFor="email">Email</FieldLabel>
                 <Input
                   id="email"
                   type="email"
-                  placeholder="name@mail.com"
+                  placeholder="nama@mail.com"
                   {...register("email")}
                   className={cn(
-                    errors.email &&
-                      "border-red-500 focus-visible:ring-red-500",
+                    errors.email && "border-red-500 focus-visible:ring-red-500",
                   )}
                   disabled={loading}
                   autoComplete="email"
@@ -133,34 +127,34 @@ export function ForgotPasswordForm(props: React.ComponentProps<"div">) {
                 )}
               </Field>
 
-              {/* Error (top-level, API error) */}
+              {/* Error */}
               {errorMessage && (
                 <FieldDescription className="text-red-600">
                   {errorMessage}
                 </FieldDescription>
               )}
 
-              {/* Success message */}
+              {/* Sukses */}
               {successMessage && (
                 <FieldDescription className="text-green-600">
                   {successMessage}
                 </FieldDescription>
               )}
 
-              {/* Submit Button */}
+              {/* Submit */}
               <Field className="flex flex-col items-center gap-2">
                 <Button
                   type="submit"
                   className="w-full"
                   disabled={!isValid || loading}
                 >
-                  {loading ? "Sending reset link..." : "Send reset link"}
+                  {loading ? "Sedang mengirim tautan..." : "Kirim tautan reset"}
                 </Button>
 
                 <FieldDescription className="text-center">
-                  Remembered your password?{" "}
+                  Sudah ingat kata sandi?{" "}
                   <a href="/auth/signin" className="text-primary">
-                    Back to Sign in
+                    Kembali ke halaman masuk
                   </a>
                 </FieldDescription>
               </Field>
@@ -168,15 +162,15 @@ export function ForgotPasswordForm(props: React.ComponentProps<"div">) {
           </form>
         </CardContent>
       </Card>
+
       <FieldDescription className="px-6 text-center">
-        {/* note: legal / policy footer copy */}
-        By continuing, you agree to our{" "}
-        <a href="/legal/terms" className="underline">
-          Terms of Service
+        Dengan melanjutkan, Anda menyetujui{" "}
+        <a href="/legal/syarat" className="underline">
+          Syarat Layanan
         </a>{" "}
-        and{" "}
-        <a href="/legal/privacy" className="underline">
-          Privacy Policy
+        serta{" "}
+        <a href="/legal/privasi" className="underline">
+          Kebijakan Privasi
         </a>
         .
       </FieldDescription>

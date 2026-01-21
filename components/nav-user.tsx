@@ -132,9 +132,9 @@ export function NavUser({ user }: NavUserProps) {
                 asChild
                 className="cursor-pointer gap-2 text-sm"
               >
-                <Link href="/main/settings">
+                <Link href="/main/pengaturan">
                   <Settings className="h-4 w-4" />
-                  <span>Settings</span>
+                  <span>Pengaturan</span>
                 </Link>
               </DropdownMenuItem>
             </DropdownMenuGroup>
@@ -156,7 +156,7 @@ export function NavUser({ user }: NavUserProps) {
                   className="flex w-full items-center gap-2 text-left"
                 >
                   <LogOut className="h-4 w-4" />
-                  <span>Log out</span>
+                  <span>Keluar</span>
                 </button>
               </form>
             </DropdownMenuItem>

@@ -1,25 +1,26 @@
 // app/main/tasks/data/logs.ts
-//"use server";
+"use server";
 
 import { z } from "zod";
+import { unstable_noStore as noStore } from "next/cache";
 import { getSupabaseServerReadOnly } from "@/lib/supabase/server";
-import { taskSchema, Task } from "./schema";
+import { taskSchema, type Task } from "./schema";
 
-/**
- * Bentuk data mentah dari Supabase:
- * weights + nested livestocks
- */
+/* =========================
+   Schema mentah Supabase
+========================= */
+
 const rawLogSchema = z.object({
   id: z.coerce.number(),
   rfid: z.string(),
   weight: z.coerce.number().nullable(),
-  created_at: z.string(), // timestamptz → string ISO
+  created_at: z.string(),
   livestocks: z
     .object({
       user_id: z.string().nullable(),
       name: z.string().nullable(),
       breed: z.string().nullable(),
-      dob: z.string().nullable(), // "YYYY-MM-DD"
+      dob: z.string().nullable(),
       sex: z.string().nullable(),
       species: z.string().nullable(),
       photo_url: z.string().nullable(),
@@ -28,44 +29,57 @@ const rawLogSchema = z.object({
     .nullable(),
 });
 
-export type RawLog = z.infer<typeof rawLogSchema>;
+const rawLivestockSchema = z.object({
+  rfid: z.string(),
+  user_id: z.string().nullable(),
+  name: z.string().nullable(),
+  breed: z.string().nullable(),
+  dob: z.string().nullable(),
+  sex: z.string().nullable(),
+  species: z.string().nullable(),
+  photo_url: z.string().nullable(),
+  is_public: z.boolean().nullable(),
+  created_at: z.string(),
+});
 
-export type AgeParts = {
-  years: number;
-  months: number;
-  days: number;
-};
+type RawLog = z.infer<typeof rawLogSchema>;
+type RawLivestock = z.infer<typeof rawLivestockSchema>;
 
+export type AgeParts = { years: number; months: number; days: number };
 export type LifeStage = "baby" | "young" | "adult";
 export type StatusType = "good" | "neutral" | "bad";
 
-/**
- * Hitung umur dari dob → sekarang dalam bentuk:
- * { years, months, days }
- */
-function calculateAgeParts(
-  dob: string | null,
-  refDate = new Date()
-): AgeParts | null {
+/* =========================
+   Helper tanggal & umur
+========================= */
+
+function toDate(ts: string): Date {
+  return new Date(ts.includes(" ") ? ts.replace(" ", "T") : ts);
+}
+
+function parseDobLocal(dob: string): Date | null {
+  const [y, m, d] = dob.split("-").map(Number);
+  if (!y || !m || !d) return null;
+  return new Date(y, m - 1, d);
+}
+
+function calculateAgeParts(dob: string | null, refDate = new Date()): AgeParts | null {
   if (!dob) return null;
 
-  const start = new Date(dob);
-  const end = refDate;
+  const start = parseDobLocal(dob);
+  if (!start) return null;
 
-  if (Number.isNaN(start.getTime())) return null;
+  const end = refDate;
 
   let years = end.getFullYear() - start.getFullYear();
   let months = end.getMonth() - start.getMonth();
   let days = end.getDate() - start.getDate();
 
-  // kalau hari negatif → pinjam 1 bulan
   if (days < 0) {
     months -= 1;
-    const previousMonth = new Date(end.getFullYear(), end.getMonth(), 0);
-    days += previousMonth.getDate();
+    const prevMonth = new Date(end.getFullYear(), end.getMonth(), 0);
+    days += prevMonth.getDate();
   }
-
-  // kalau bulan negatif → pinjam 1 tahun
   if (months < 0) {
     years -= 1;
     months += 12;
@@ -77,105 +91,120 @@ function calculateAgeParts(
 function getLifeStage(age: AgeParts | null): LifeStage | null {
   if (!age) return null;
   const totalMonths = age.years * 12 + age.months;
-
   if (totalMonths <= 6) return "baby";
   if (totalMonths <= 18) return "young";
   return "adult";
 }
 
-/**
- * Tambahkan:
- * - status: good / neutral / bad (dibandingkan berat sebelumnya per RFID)
- * - age: { years, months, days } dari dob
- * - lifeStage: bayi / remaja / dewasa (dari age)
- *
- * dan flatten nested livestocks → bentuk Task (schema final utk DataTable)
- */
+function monthKeyFromISO(iso: string): string {
+  const d = toDate(iso);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function monthKeyToDate(key: string): Date {
+  const [y, m] = key.split("-").map(Number);
+  return new Date(y, m - 1, 1);
+}
+
+function dateToMonthKey(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function buildMonthRange(minKey: string, maxKey: string): string[] {
+  const start = monthKeyToDate(minKey);
+  const end = monthKeyToDate(maxKey);
+  const keys: string[] = [];
+
+  const cur = new Date(start);
+  while (cur <= end) {
+    keys.push(dateToMonthKey(cur));
+    cur.setMonth(cur.getMonth() + 1);
+  }
+  return keys;
+}
+
+/* =========================
+   Attach status/delta/age
+========================= */
+
 function attachStatusAndAge(rawLogs: RawLog[]): Task[] {
-  // sort dulu per rfid lalu per tanggal (ascending)
+  // delta perlu urut naik per rfid
   const sorted = [...rawLogs].sort((a, b) => {
-    if (a.rfid === b.rfid) {
-      return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-    }
+    if (a.rfid === b.rfid) return toDate(a.created_at).getTime() - toDate(b.created_at).getTime();
     return a.rfid.localeCompare(b.rfid);
   });
 
   const lastWeightByRfid = new Map<string, number | null>();
   const now = new Date();
 
-  const tasks: Task[] = [];
+  const out: Task[] = [];
 
   for (const log of sorted) {
-    const prevWeight = lastWeightByRfid.get(log.rfid) ?? null;
-    const currWeight = log.weight ?? null;
+    const prev = lastWeightByRfid.get(log.rfid) ?? null;
+    const curr = log.weight ?? null;
 
     let status: StatusType = "neutral";
     let delta: number | null = null;
 
-    if (prevWeight !== null && currWeight !== null) {
-      delta = currWeight - prevWeight;
-
-      if (currWeight > prevWeight) status = "good";
-      else if (currWeight < prevWeight) status = "bad";
-      else status = "neutral";
+    if (prev !== null && curr !== null) {
+      delta = curr - prev;
+      status = curr > prev ? "good" : curr < prev ? "bad" : "neutral";
     }
 
     const age = calculateAgeParts(log.livestocks?.dob ?? null, now);
     const lifeStage = getLifeStage(age);
 
-    const base = {
-      id: log.id,
-      rfid: log.rfid,
-      weight: currWeight,
-      weight_created_at: log.created_at,
+    out.push(
+      taskSchema.parse({
+        id: log.id,
+        rfid: log.rfid,
+        weight: curr,
+        weight_created_at: log.created_at,
 
-      name: log.livestocks?.name ?? null,
-      breed: log.livestocks?.breed ?? null,
-      dob: log.livestocks?.dob ?? null,
-      sex: log.livestocks?.sex ?? null,
-      species: log.livestocks?.species ?? null,
-      photo_url: log.livestocks?.photo_url ?? null,
-      is_public: log.livestocks?.is_public ?? false,
+        name: log.livestocks?.name ?? null,
+        breed: log.livestocks?.breed ?? null,
+        dob: log.livestocks?.dob ?? null,
+        sex: log.livestocks?.sex ?? null,
+        species: log.livestocks?.species ?? null,
+        photo_url: log.livestocks?.photo_url ?? null,
+        is_public: log.livestocks?.is_public ?? false,
 
-      status,
-      age: age ?? { years: 0, months: 0, days: 0 },
-      lifeStage,
-      delta,
-    };
+        status,
+        age: age ?? { years: 0, months: 0, days: 0 },
+        lifeStage,
+        delta,
+      }),
+    );
 
-    const parsed = taskSchema.parse(base);
-    tasks.push(parsed);
-
-    lastWeightByRfid.set(log.rfid, currWeight);
+    lastWeightByRfid.set(log.rfid, curr);
   }
 
-  return tasks;
+  // untuk UI log biasanya terbaru dulu
+  return out.sort((a, b) => toDate(b.weight_created_at).getTime() - toDate(a.weight_created_at).getTime());
 }
 
-/**
- * FULL LOGS (Data Logs page):
- * - semua penimbangan
- */
-export async function getTasks(): Promise<Task[]> {
+/* =========================
+   Query data dasar (sekali)
+========================= */
+
+async function getUserOrEmpty() {
   const supabase = await getSupabaseServerReadOnly();
+  const { data: { user }, error } = await supabase.auth.getUser();
 
-  // 1) Ambil user yang lagi login
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser();
+  if (error) console.error("getUser error:", error);
+  return { supabase, user };
+}
 
-  if (userError) {
-    console.error("getUser error:", userError);
-    return [];
-  }
+/* =========================
+   1) FULL LOGS (Data Logs)
+========================= */
 
-  if (!user) {
-    // tidak login → tidak ada log
-    return [];
-  }
+export async function getTasks(): Promise<Task[]> {
+  noStore();
 
-  // 2) Ambil weights HANYA untuk ternak milik user ini
+  const { supabase, user } = await getUserOrEmpty();
+  if (!user) return [];
+
   const { data, error } = await supabase
     .from("weights")
     .select(
@@ -194,69 +223,323 @@ export async function getTasks(): Promise<Task[]> {
         photo_url,
         is_public
       )
-    `
+    `,
     )
-    .eq("livestocks.user_id", user.id) // ⬅️ filter cuma ternak milik user
-    .order("created_at", { ascending: false });
+    .eq("livestocks.user_id", user.id)
+    .order("created_at", { ascending: true }); // penting untuk delta
 
   if (error) {
     console.error("Error fetching weights logs:", error);
     return [];
   }
 
-  const rawParsed = rawLogSchema.array().parse(data ?? []);
-  return attachStatusAndAge(rawParsed);
-}
-
-
-/**
- * LATEST PER RFID (Livestock List):
- * - 1 baris per RFID
- * - pakai log TERBARU per ternak
- * - delta tetap = berat_terakhir - berat_sebelumnya
- */
-export async function getLatestLivestock(): Promise<Task[]> {
-  const allTasks = await getTasks();
-
-  const latestByRfid = new Map<string, Task>();
-
-  for (const task of allTasks) {
-    const existing = latestByRfid.get(task.rfid);
-
-    if (!existing) {
-      latestByRfid.set(task.rfid, task);
-      continue;
-    }
-
-    const existingDate = new Date(existing.weight_created_at);
-    const currentDate = new Date(task.weight_created_at);
-
-    if (currentDate > existingDate) {
-      latestByRfid.set(task.rfid, task);
-    }
+  const parsed = rawLogSchema.array().safeParse(data ?? []);
+  if (!parsed.success) {
+    console.error("Invalid weights payload:", parsed.error);
+    return [];
   }
 
-  const result = Array.from(latestByRfid.values());
+  return attachStatusAndAge(parsed.data);
+}
 
-  // Optional: sort by name (fallback ke RFID)
-  result.sort((a, b) => {
-    const nameA = a.name ?? a.rfid;
-    const nameB = b.name ?? b.rfid;
-    return nameA.localeCompare(nameB);
+/* =========================
+   2) LATEST PER RFID (List)
+========================= */
+
+export async function getLatestLivestock(): Promise<Task[]> {
+  noStore();
+
+  const { supabase, user } = await getUserOrEmpty();
+  if (!user) return [];
+
+  const { data: livestockData, error: livestockErr } = await supabase
+    .from("livestocks")
+    .select(
+      `
+      rfid,
+      user_id,
+      name,
+      breed,
+      dob,
+      sex,
+      species,
+      photo_url,
+      is_public,
+      created_at
+    `,
+    )
+    .eq("user_id", user.id)
+    .order("created_at", { ascending: true });
+
+  if (livestockErr) {
+    console.error("Fetch livestocks error:", livestockErr);
+    return [];
+  }
+
+  const lvParsed = rawLivestockSchema.array().safeParse(livestockData ?? []);
+  if (!lvParsed.success) {
+    console.error("Invalid livestocks payload:", lvParsed.error);
+    return [];
+  }
+
+  const livestocks: RawLivestock[] = lvParsed.data;
+
+  // ambil logs (sudah ada delta/status)
+  const logs = await getTasks();
+  const latestByRfid = new Map<string, Task>();
+
+  for (const t of logs) {
+    const existing = latestByRfid.get(t.rfid);
+    if (!existing) latestByRfid.set(t.rfid, t);
+    else if (toDate(t.weight_created_at) > toDate(existing.weight_created_at)) latestByRfid.set(t.rfid, t);
+  }
+
+  // merge: semua ternak harus tampil walau belum ada log
+  const now = new Date();
+  let syntheticId = -1;
+
+  const result: Task[] = livestocks.map((lv) => {
+    const existing = latestByRfid.get(lv.rfid);
+    if (existing) return existing;
+
+    const age = calculateAgeParts(lv.dob, now);
+    const lifeStage = getLifeStage(age);
+
+    return taskSchema.parse({
+      id: syntheticId--,
+      rfid: lv.rfid,
+      weight: null,
+      weight_created_at: lv.created_at,
+
+      name: lv.name ?? null,
+      breed: lv.breed ?? null,
+      dob: lv.dob ?? null,
+      sex: lv.sex ?? null,
+      species: lv.species ?? null,
+      photo_url: lv.photo_url ?? null,
+      is_public: lv.is_public ?? false,
+
+      status: "neutral" as StatusType,
+      age: age ?? { years: 0, months: 0, days: 0 },
+      lifeStage,
+      delta: null,
+    });
   });
 
+  // sort by name
+  result.sort((a, b) => (a.name ?? a.rfid).localeCompare(b.name ?? b.rfid));
   return result;
 }
 
-// Batas Section cards (dashboard)
+/* =========================
+   3) DASHBOARD MONTHLY SERIES
+========================= */
 
-// helper: konversi tanggal → key bulan "YYYY-MM"
-function getMonthKey(iso: string): string {
-  const d = new Date(iso);
-  const y = d.getFullYear();
-  const m = d.getMonth() + 1;
-  return `${y}-${m.toString().padStart(2, "0")}`;
+export type DashboardMonthlyPoint = {
+  monthKey: string; // "2024-06"
+  label: string;    // "Jun 2024"
+  totalLivestock: number;
+  avgWeight: number | null;
+  stuckLossCount: number;
+
+  totalLivestockPct: number;
+  avgWeightPct: number;
+  stuckLossPct: number;
+
+  healthScore: number;
+  healthScoreDelta: number;
+};
+
+function clamp01(x: number): number {
+  return Math.max(0, Math.min(1, x));
 }
+
+export async function getDashboardMonthlySeries(maxMonths: number | "all" = 12): Promise<DashboardMonthlyPoint[]> {
+  noStore();
+
+  const { supabase, user } = await getUserOrEmpty();
+  if (!user) return [];
+
+  // A) ambil semua ternak (buat herd size)
+  const { data: livestockData, error: livestockErr } = await supabase
+    .from("livestocks")
+    .select(`rfid, created_at`)
+    .eq("user_id", user.id);
+
+  if (livestockErr) {
+    console.error("Fetch livestocks error (series):", livestockErr);
+    return [];
+  }
+
+  const lvMiniSchema = z.object({ rfid: z.string(), created_at: z.string() });
+  const lvMiniParsed = lvMiniSchema.array().safeParse(livestockData ?? []);
+  if (!lvMiniParsed.success) {
+    console.error("Invalid livestocks series payload:", lvMiniParsed.error);
+    return [];
+  }
+
+  const lvMini = lvMiniParsed.data;
+  if (lvMini.length === 0) return [];
+
+  const livestockMonthKeys = lvMini.map((lv) => monthKeyFromISO(lv.created_at));
+  const firstKey = [...livestockMonthKeys].sort()[0];
+
+  // B) ambil semua log weights (sekali) untuk series
+  const { data: weightData, error: weightErr } = await supabase
+    .from("weights")
+    .select(
+      `
+      id,
+      rfid,
+      weight,
+      created_at,
+      livestocks!inner ( user_id )
+    `,
+    )
+    .eq("livestocks.user_id", user.id)
+    .order("created_at", { ascending: true }); // penting untuk delta
+
+  if (weightErr) {
+    console.error("Fetch weights error (series):", weightErr);
+    return [];
+  }
+
+  const weightsMiniSchema = z.object({
+    id: z.coerce.number(),
+    rfid: z.string(),
+    weight: z.coerce.number().nullable(),
+    created_at: z.string(),
+    livestocks: z.object({ user_id: z.string().nullable() }).nullable(),
+  });
+
+  const wParsed = weightsMiniSchema.array().safeParse(weightData ?? []);
+  if (!wParsed.success) {
+    console.error("Invalid weights series payload:", wParsed.error);
+    return [];
+  }
+
+  const rawWeights = wParsed.data;
+  if (rawWeights.length === 0) return [];
+
+  // C) hitung status/delta per rfid untuk kebutuhan stuckLossCount bulanan
+  const lastWeight = new Map<string, number | null>();
+
+  // Map monthKey -> Map rfid -> latest status+weight within that month
+  const latestByMonth = new Map<string, Map<string, { weight: number | null; status: StatusType; created_at: string }>>();
+  const hasLogsByMonth = new Set<string>();
+  let lastLogKey = firstKey;
+
+  for (const row of rawWeights) {
+    const monthKey = monthKeyFromISO(row.created_at);
+    hasLogsByMonth.add(monthKey);
+    lastLogKey = monthKey;
+
+    const prev = lastWeight.get(row.rfid) ?? null;
+    const curr = row.weight ?? null;
+
+    let status: StatusType = "neutral";
+    if (prev !== null && curr !== null) {
+      status = curr > prev ? "good" : curr < prev ? "bad" : "neutral";
+    }
+
+    lastWeight.set(row.rfid, curr);
+
+    let rfidMap = latestByMonth.get(monthKey);
+    if (!rfidMap) {
+      rfidMap = new Map();
+      latestByMonth.set(monthKey, rfidMap);
+    }
+
+    const existing = rfidMap.get(row.rfid);
+    if (!existing || toDate(row.created_at) > toDate(existing.created_at)) {
+      rfidMap.set(row.rfid, { weight: curr, status, created_at: row.created_at });
+    }
+  }
+
+  // D) bangun range bulan kontinyu
+  const fullRange = buildMonthRange(firstKey, lastLogKey);
+  const monthKeys =
+    maxMonths === "all" ? fullRange : fullRange.slice(Math.max(0, fullRange.length - maxMonths));
+
+  // E) build point per bulan
+  const points: DashboardMonthlyPoint[] = monthKeys.map((monthKey) => {
+    const herdSize = livestockMonthKeys.filter((k) => k <= monthKey).length;
+
+    const rfidMap = latestByMonth.get(monthKey);
+    const list = rfidMap ? Array.from(rfidMap.values()) : [];
+
+    const weights = list.map((x) => x.weight).filter((w): w is number => typeof w === "number" && !Number.isNaN(w));
+    const avgWeight = weights.length > 0 ? weights.reduce((a, b) => a + b, 0) / weights.length : null;
+
+    const stuckLossCount = list.filter((x) => x.status === "neutral" || x.status === "bad").length;
+    const stuckLossPct = herdSize > 0 ? (stuckLossCount / herdSize) * 100 : 0;
+
+    const label = monthKeyToDate(monthKey).toLocaleDateString("id-ID", {
+      month: "short",
+      year: "numeric",
+    });
+
+    return {
+      monthKey,
+      label,
+      totalLivestock: herdSize,
+      avgWeight,
+      stuckLossCount,
+      totalLivestockPct: 0,
+      avgWeightPct: 0,
+      stuckLossPct,
+      healthScore: 0,
+      healthScoreDelta: 0,
+    };
+  });
+
+  // F) carry-forward avgWeight untuk bulan tanpa log
+  let lastNonNullAvg: number | null = null;
+  for (const p of points) {
+    if (hasLogsByMonth.has(p.monthKey) && p.avgWeight != null) {
+      lastNonNullAvg = p.avgWeight;
+    } else if (!hasLogsByMonth.has(p.monthKey) && lastNonNullAvg != null) {
+      p.avgWeight = lastNonNullAvg;
+    }
+  }
+
+  // G) hitung MoM + healthScore
+  for (let i = 0; i < points.length; i++) {
+    const curr = points[i];
+    const prev = i > 0 ? points[i - 1] : null;
+    const hasLogs = hasLogsByMonth.has(curr.monthKey);
+
+    // totalLivestock MoM
+    curr.totalLivestockPct =
+      prev && prev.totalLivestock > 0
+        ? ((curr.totalLivestock - prev.totalLivestock) / prev.totalLivestock) * 100
+        : 0;
+
+    // avgWeight MoM: hanya kalau bulan ini ada log beneran
+    curr.avgWeightPct =
+      hasLogs && prev && curr.avgWeight != null && prev.avgWeight != null && prev.avgWeight !== 0
+        ? ((curr.avgWeight - prev.avgWeight) / prev.avgWeight) * 100
+        : 0;
+
+    // health score (0-100)
+    const growthDown = curr.totalLivestockPct < 0 ? -curr.totalLivestockPct : 0;
+    const weightDown = curr.avgWeightPct < 0 ? -curr.avgWeightPct : 0;
+
+    const riskGrowth = clamp01(growthDown / 20);
+    const riskWeight = clamp01(weightDown / 10);
+    const riskStuck = clamp01(curr.stuckLossPct / 40);
+
+    const risk = 0.4 * riskGrowth + 0.3 * riskWeight + 0.3 * riskStuck;
+    curr.healthScore = Math.max(0, 100 * (1 - risk));
+    curr.healthScoreDelta = prev ? curr.healthScore - prev.healthScore : 0;
+  }
+
+  return points;
+}
+
+/* =========================
+   4) DASHBOARD CARDS (ringkas)
+========================= */
 
 export type DashboardStats = {
   totalLivestock: number;
@@ -269,74 +552,52 @@ export type DashboardStats = {
 
   stuckLossCount: number;
   stuckLossDiff: number;
-  stuckLossPct: number | null; // share-of-herd bulan ini
+  stuckLossPct: number | null;
 
-  // Health Score (bukan growth overview lagi)
-  healthScoreCurrent: number | null; // bulan ini
-  healthScorePrev: number | null;    // bulan lalu
+  healthScoreCurrent: number | null;
+  healthScorePrev: number | null;
 };
 
 export async function getDashboardStats(): Promise<DashboardStats> {
-  // Pakai timeseries bulanan sebagai sumber kebenaran
-  // Ambil maksimal 3 bulan terakhir (buat hitung Diff & perbandingan)
+  noStore();
+
   const series = await getDashboardMonthlySeries(3);
 
-  if (series.length === 0) {
-    return {
-      totalLivestock: 0,
-      totalLivestockDiff: 0,
-      totalLivestockPct: null,
+  const empty: DashboardStats = {
+    totalLivestock: 0,
+    totalLivestockDiff: 0,
+    totalLivestockPct: null,
 
-      avgWeight: null,
-      avgWeightDiff: null,
-      avgWeightPct: null,
+    avgWeight: null,
+    avgWeightDiff: null,
+    avgWeightPct: null,
 
-      stuckLossCount: 0,
-      stuckLossDiff: 0,
-      stuckLossPct: null,
+    stuckLossCount: 0,
+    stuckLossDiff: 0,
+    stuckLossPct: null,
 
-      healthScoreCurrent: null,
-      healthScorePrev: null,
-    };
-  }
+    healthScoreCurrent: null,
+    healthScorePrev: null,
+  };
+
+  if (series.length === 0) return empty;
 
   const current = series[series.length - 1];
   const prev = series.length >= 2 ? series[series.length - 2] : null;
 
-  // --- Total livestock ---
   const totalLivestock = current.totalLivestock;
-  const totalLivestockDiff = prev
-    ? totalLivestock - prev.totalLivestock
-    : 0;
-
+  const totalLivestockDiff = prev ? totalLivestock - prev.totalLivestock : 0;
   const totalLivestockPct = prev ? current.totalLivestockPct : null;
 
-  // --- Average weight (kg) ---
   const avgWeight = current.avgWeight ?? null;
-
   const avgWeightDiff =
-    avgWeight != null && prev?.avgWeight != null
-      ? avgWeight - prev.avgWeight
-      : null;
+    prev && avgWeight != null && prev.avgWeight != null ? avgWeight - prev.avgWeight : null;
+  const avgWeightPct = prev ? current.avgWeightPct : null;
 
-  const avgWeightPct =
-    prev &&
-    current.avgWeight != null &&
-    prev?.avgWeight != null &&
-    prev.avgWeight !== 0
-      ? current.avgWeightPct
-      : null;
-
-  // --- Stuck / loss (jumlah & share) ---
   const stuckLossCount = current.stuckLossCount;
-  const stuckLossDiff = prev
-    ? stuckLossCount - prev.stuckLossCount
-    : 0;
+  const stuckLossDiff = prev ? stuckLossCount - prev.stuckLossCount : 0;
+  const stuckLossPct = totalLivestock > 0 ? current.stuckLossPct : null;
 
-  const stuckLossPct =
-    current.totalLivestock > 0 ? current.stuckLossPct : null;
-
-  // --- Health Score ---
   const healthScoreCurrent = current.healthScore ?? null;
   const healthScorePrev = prev ? prev.healthScore : null;
 
@@ -356,189 +617,4 @@ export async function getDashboardStats(): Promise<DashboardStats> {
     healthScoreCurrent,
     healthScorePrev,
   };
-}
-
-// Batas Chart area interactive (dashboard)
-
-export type DashboardMonthlyPoint = {
-  monthKey: string;      // "2024-06"
-  label: string;         // "Jun 2024"
-  totalLivestock: number;
-  avgWeight: number | null;
-  stuckLossCount: number;
-
-  totalLivestockPct: number; // MoM % jumlah ternak
-  avgWeightPct: number;      // MoM % rata-rata berat
-  stuckLossPct: number;      // % ternak stuck/loss dari total ternak bulan tsb
-
-  healthScore: number;       // nilai kesehatan 0–100 (absolute)
-  healthScoreDelta: number;  // Δ healthScore vs bulan sebelumnya
-};
-
-/**
- * Timeseries bulanan untuk KPI dashboard:
- * - totalLivestockPct  → MoM jumlah ternak
- * - avgWeightPct       → MoM rata-rata berat
- * - stuckLossPct       → % stuck/loss dari total ternak bulan tsb
- * - healthScore        → indeks 0..100 berbasis:
- *      - share ternak dengan status "good"
- *      - share ternak stuck/loss
- *      - pertumbuhan rata-rata berat (avgWeightPct)
- *
- * maxMonths: berapa bulan terakhir yang diambil (default 12).
- */
-function clamp01(x: number): number {
-  return Math.max(0, Math.min(1, x));
-}
-
-export async function getDashboardMonthlySeries(
-  maxMonths: number | "all" = 12
-): Promise<DashboardMonthlyPoint[]> {
-  const allTasks = await getTasks(); // sudah ada status, delta, dll
-
-  // 1) Group per month -> per RFID -> latest Task
-  const latestByMonthAndRfid = new Map<string, Map<string, Task>>();
-
-  for (const task of allTasks) {
-    const monthKey = getMonthKey(task.weight_created_at);
-
-    let rfidMap = latestByMonthAndRfid.get(monthKey);
-    if (!rfidMap) {
-      rfidMap = new Map<string, Task>();
-      latestByMonthAndRfid.set(monthKey, rfidMap);
-    }
-
-    const existing = rfidMap.get(task.rfid);
-    if (!existing) {
-      rfidMap.set(task.rfid, task);
-      continue;
-    }
-
-    const existingDate = new Date(existing.weight_created_at);
-    const currentDate = new Date(task.weight_created_at);
-
-    if (currentDate > existingDate) {
-      rfidMap.set(task.rfid, task);
-    }
-  }
-
-  // 2) Hitung level per bulan (belum % & healthScore)
-  const monthKeys = Array.from(latestByMonthAndRfid.keys()).sort();
-
-  const monthly: DashboardMonthlyPoint[] = monthKeys.map((monthKey) => {
-    const rfidMap = latestByMonthAndRfid.get(monthKey)!;
-    const list = Array.from(rfidMap.values());
-
-    const totalLivestock = rfidMap.size;
-
-    const weights = list
-      .map((t) => t.weight)
-      .filter(
-        (w): w is number =>
-          typeof w === "number" && !Number.isNaN(w)
-      );
-
-    const avgWeight =
-      weights.length > 0
-        ? weights.reduce((acc, w) => acc + w, 0) / weights.length
-        : null;
-
-    const stuckLossCount = list.filter(
-      (t) =>
-        t.delta != null &&
-        (t.status === "neutral" || t.status === "bad")
-    ).length;
-
-    const [year, month] = monthKey.split("-");
-    const label = new Date(Number(year), Number(month) - 1, 1).toLocaleDateString(
-      "en-US",
-      { month: "short", year: "numeric" }
-    );
-
-    return {
-      monthKey,
-      label,
-      totalLivestock,
-      avgWeight,
-      stuckLossCount,
-      totalLivestockPct: 0,
-      avgWeightPct: 0,
-      stuckLossPct: 0,
-      healthScore: 0,
-      healthScoreDelta: 0,
-    };
-  });
-
-  if (monthly.length === 0) return [];
-
-  // 3) Hitung % MoM & healthScore per bulan
-  for (let i = 0; i < monthly.length; i++) {
-    const curr = monthly[i];
-    const prev = i > 0 ? monthly[i - 1] : null;
-
-    // --- Total livestock MoM (% perubahan headcount) ---
-    if (prev && prev.totalLivestock > 0) {
-      const totalDiff = curr.totalLivestock - prev.totalLivestock;
-      curr.totalLivestockPct = (totalDiff / prev.totalLivestock) * 100;
-    } else {
-      curr.totalLivestockPct = 0;
-    }
-
-    // --- Avg weight MoM (% perubahan rata-rata berat) ---
-    if (
-      prev &&
-      curr.avgWeight != null &&
-      prev.avgWeight != null &&
-      prev.avgWeight !== 0
-    ) {
-      curr.avgWeightPct =
-        ((curr.avgWeight - prev.avgWeight) / prev.avgWeight) * 100;
-    } else {
-      curr.avgWeightPct = 0;
-    }
-
-    // --- Stuck & loss share (% dari total ternak bulan tsb) ---
-    if (curr.totalLivestock > 0) {
-      curr.stuckLossPct =
-        (curr.stuckLossCount / curr.totalLivestock) * 100;
-    } else {
-      curr.stuckLossPct = 0;
-    }
-
-    // --- Health score absolute (0–100) ---
-    // Penalize: penurunan headcount, penurunan avg weight, dan share stuck/loss
-    const growthDown = curr.totalLivestockPct < 0 ? -curr.totalLivestockPct : 0; // hanya kalau turun
-    const weightDown = curr.avgWeightPct < 0 ? -curr.avgWeightPct : 0;          // hanya kalau turun
-
-    const riskGrowth = clamp01(growthDown / 20);    // -20% headcount = risk 1.0
-    const riskWeight = clamp01(weightDown / 10);    // -10% avg weight = risk 1.0
-    const riskStuck  = clamp01(curr.stuckLossPct / 40); // 40% stuck/loss = risk 1.0
-
-    const risk =
-      0.4 * riskGrowth +
-      0.3 * riskWeight +
-      0.3 * riskStuck;
-
-    curr.healthScore = Math.max(0, 100 * (1 - risk));
-
-    // --- Health score delta (yg kamu mau tampil di chart) ---
-    if (prev) {
-      curr.healthScoreDelta = curr.healthScore - prev.healthScore;
-    } else {
-      curr.healthScoreDelta = 0;
-    }
-  }
-
-  // 4) Potong ke maxMonths terakhir
-  if (maxMonths === "all") {
-    return monthly;
-  }
-
-
-  const sliced =
-    monthly.length > maxMonths
-      ? monthly.slice(monthly.length - maxMonths)
-      : monthly;
-
-  return sliced;
 }

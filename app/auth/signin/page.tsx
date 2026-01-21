@@ -4,6 +4,28 @@ import { barn } from '@lucide/lab';
 
 import { LoginForm } from "./components/login-form"
 
+import { redirect } from "next/navigation";
+import { getSupabaseServerReadOnly } from "@/lib/supabase/server";
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+export async function generateMetadata() {
+  const supabase = await getSupabaseServerReadOnly();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (user) {
+    // sudah login → tendang ke main
+    redirect("/main/dashboard");
+  }
+
+  return {
+    title: "Sign In - GROWT",
+    description: "Sign in to your GROWT account.",
+  };
+}
+
 export default function LoginPage() {
   return (
     <div className="bg-muted flex min-h-svh flex-col items-center justify-center gap-6 p-6 md:p-10">
@@ -15,7 +37,7 @@ export default function LoginPage() {
           GROWT.
         </a>
 
-        <Suspense fallback={<div>Loading...</div>}>
+        <Suspense fallback={<div>Memuat...</div>}>
           <LoginForm />
         </Suspense>
       </div>

@@ -27,17 +27,17 @@ import {
 import { Input } from "@/components/ui/input"
 import { GoogleLoginButton } from "@/components/auth/google-login-button"
 
-// note: basic form schema — trim + lowercase email to keep it consistent
+// Skema form — email di-trim + lowercase biar konsisten
 const loginSchema = z.object({
   email: z
     .string()
-    .min(1, "Email is required")
-    .email("Please enter a valid email address")
+    .min(1, "Email wajib diisi")
+    .email("Masukkan email yang valid")
     .transform((v) => v.trim().toLowerCase()),
   password: z
     .string()
-    .min(6, "Password must be at least 6 characters")
-    .max(64, "Password is too long"),
+    .min(6, "Kata sandi minimal 6 karakter")
+    .max(64, "Kata sandi terlalu panjang"),
 })
 
 type LoginData = z.infer<typeof loginSchema>
@@ -65,7 +65,7 @@ export function LoginForm({
     formState: { errors, isValid },
   } = useForm<LoginData>({
     resolver: zodResolver(loginSchema),
-    mode: "onChange", // note: enables live validation + disables button until valid
+    mode: "onChange",
   })
 
   const onSubmit = async (data: LoginData) => {
@@ -73,7 +73,7 @@ export function LoginForm({
     setErrorMessage(null)
 
     try {
-      // note: if redirect query exists (?redirect=/something), send it in the body
+      // kalau ada query redirect (?redirect=/something), kirim ke body
       const redirect = searchParams.get("redirect")
       const payload = redirect ? { ...data, redirect } : data
 
@@ -87,21 +87,22 @@ export function LoginForm({
       try {
         result = (await res.json()) as LoginResponse
       } catch {
-        // note: if JSON parsing fails, treat as generic error below
         result = null
       }
 
       if (!res.ok || !result?.success) {
-        throw new Error(result?.error || "Invalid email or password. Please try again.")
+        throw new Error(
+          result?.error || "Email atau kata sandi salah. Coba lagi, ya.",
+        )
       }
 
-      // note: server decides redirect; fallback to dashboard
+      // server yang tentuin redirect; fallback ke dashboard
       router.push(result.redirect ?? "/main/dashboard")
     } catch (err: unknown) {
       const message =
         err instanceof Error
           ? err.message
-          : "An unexpected error occurred. Please try again later."
+          : "Terjadi kendala. Silakan coba lagi beberapa saat."
       setErrorMessage(message)
     } finally {
       setLoading(false)
@@ -110,23 +111,23 @@ export function LoginForm({
 
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
-      {/* note: theme toggle pinned on the top-right */}
+      {/* toggle tema di kanan atas */}
       <div className="absolute right-4 top-4 z-10">
         <ModeToggle />
       </div>
 
       <Card>
         <CardHeader className="text-center">
-          <CardTitle className="text-xl">Welcome Back</CardTitle>
+          <CardTitle className="text-xl">Selamat Datang Kembali</CardTitle>
           <CardDescription>
-            Sign in with your Google account or use your email and password.
+            Masuk pakai Google atau gunakan email dan kata sandi Anda.
           </CardDescription>
         </CardHeader>
 
         <CardContent>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <FieldGroup>
-              {/* note: top-level error (API / network / Google auth) */}
+              {/* error umum (API / network / Google auth) */}
               {errorMessage && (
                 <div
                   role="alert"
@@ -136,18 +137,17 @@ export function LoginForm({
                 </div>
               )}
 
-              {/* Google Button */}
+              {/* Tombol Google */}
               <Field>
                 <GoogleLoginButton
                   redirect="/main/dashboard"
-                  label="Continue with Google"
-                  // note: surface Google auth error into the same error area
+                  label="Lanjut dengan Google"
                   onError={(msg) => setErrorMessage(msg)}
                 />
               </Field>
 
               <FieldSeparator className="*:data-[slot=field-separator-content]:bg-card">
-                Or continue with email
+                Atau masuk dengan email
               </FieldSeparator>
 
               {/* Email */}
@@ -156,7 +156,7 @@ export function LoginForm({
                 <Input
                   id="email"
                   type="email"
-                  placeholder="Use your registered email (e.g., name@mail.com)"
+                  placeholder="Masukkan email terdaftar (contoh: nama@mail.com)"
                   {...register("email")}
                   className={cn(
                     errors.email && "border-red-500 focus-visible:ring-red-500",
@@ -174,22 +174,24 @@ export function LoginForm({
               {/* Password */}
               <Field>
                 <div className="flex items-center">
-                  <FieldLabel htmlFor="password">Password</FieldLabel>
+                  <FieldLabel htmlFor="password">Kata sandi</FieldLabel>
                   <a
                     href="/auth/forgot-password"
                     className="ml-auto text-sm underline-offset-4 hover:underline"
                   >
-                    Forgot your password?
+                    Lupa kata sandi?
                   </a>
                 </div>
+
                 <div className="relative">
                   <Input
                     id="password"
                     type={showPassword ? "text" : "password"}
-                    placeholder="Enter your password"
+                    placeholder="Masukkan kata sandi"
                     {...register("password")}
                     className={cn(
-                      errors.password && "border-red-500 focus-visible:ring-red-500",
+                      errors.password &&
+                        "border-red-500 focus-visible:ring-red-500",
                     )}
                     disabled={loading}
                     autoComplete="current-password"
@@ -198,7 +200,9 @@ export function LoginForm({
                     type="button"
                     onClick={() => setShowPassword((v) => !v)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
-                    aria-label={showPassword ? "Hide password" : "Show password"}
+                    aria-label={
+                      showPassword ? "Sembunyikan kata sandi" : "Tampilkan kata sandi"
+                    }
                     disabled={loading}
                   >
                     {showPassword ? (
@@ -208,6 +212,7 @@ export function LoginForm({
                     )}
                   </button>
                 </div>
+
                 {errors.password && (
                   <FieldDescription className="text-red-600">
                     {errors.password.message}
@@ -217,13 +222,18 @@ export function LoginForm({
 
               {/* Submit */}
               <Field className="flex flex-col items-center gap-2">
-                <Button type="submit" className="w-full" disabled={!isValid || loading}>
-                  {loading ? "Signing you in..." : "Sign In"}
+                <Button
+                  type="submit"
+                  className="w-full"
+                  disabled={!isValid || loading}
+                >
+                  {loading ? "Sedang masuk..." : "Masuk"}
                 </Button>
+
                 <FieldDescription className="text-center">
-                  Don&apos;t have an account?{" "}
+                  Belum punya akun?{" "}
                   <a href="/auth/signup" className="text-primary">
-                    Sign up
+                    Daftar
                   </a>
                 </FieldDescription>
               </Field>
@@ -233,14 +243,13 @@ export function LoginForm({
       </Card>
 
       <FieldDescription className="px-6 text-center">
-        {/* note: legal / policy footer copy */}
-        By continuing, you agree to our{" "}
-        <a href="/legal/terms" className="underline">
-          Terms of Service
+        Dengan melanjutkan, Anda menyetujui{" "}
+        <a href="/legal/syarat" className="underline">
+          Syarat Layanan
         </a>{" "}
-        and{" "}
-        <a href="/legal/privacy" className="underline">
-          Privacy Policy
+        serta{" "}
+        <a href="/legal/privasi" className="underline">
+          Kebijakan Privasi
         </a>
         .
       </FieldDescription>

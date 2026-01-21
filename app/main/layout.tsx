@@ -34,24 +34,31 @@ export default async function MainLayout({
 
   if (!user) redirect("/auth/signin");
 
+  const appMeta = (user.app_metadata ?? {}) as Record<string, unknown>;
+  const userMeta = (user.user_metadata ?? {}) as Record<string, unknown>;
+
+  // 🔑 role: "admin" → admin panel
+  const role = appMeta["role"]?.toString();
+  const isAdmin = role === "admin";
+
   const name =
-    (user.user_metadata as Record<string, unknown> | null)?.["full_name"]?.toString() ??
-    (user.user_metadata as Record<string, unknown> | null)?.["name"]?.toString() ??
+    userMeta["full_name"]?.toString() ??
+    userMeta["name"]?.toString() ??
     (user.email ?? "").split("@")[0];
 
   const email = user.email ?? "";
 
   const avatarFromMeta =
-    (user.user_metadata as Record<string, unknown> | null)?.["avatar_url"]?.toString() ??
-    (user.user_metadata as Record<string, unknown> | null)?.["picture"]?.toString() ??
+    userMeta["avatar_url"]?.toString() ??
+    userMeta["picture"]?.toString() ??
     "";
 
-  const provider = (user.app_metadata as Record<string, unknown> | null)?.["provider"]?.toString();
+  const provider = appMeta["provider"]?.toString();
 
   const avatarFallback =
     !avatarFromMeta && provider === "email"
       ? `https://api.dicebear.com/8.x/initials/svg?seed=${encodeURIComponent(
-          getInitials(name, email)
+          getInitials(name, email),
         )}`
       : "";
 
@@ -63,8 +70,8 @@ export default async function MainLayout({
 
   return (
     <SidebarProvider>
-      {/*Kirim user ke AppSidebar */}
-      <AppSidebar user={uiUser} />
+      {/* ⬇️ kirim isAdmin ke AppSidebar */}
+      <AppSidebar user={uiUser} isAdmin={isAdmin} />
 
       <SidebarInset>
         <SiteHeader user={uiUser} />

@@ -16,7 +16,7 @@ import { getDashboardStats } from "./data-table/data/logs";
 
 function formatNumber(value: number | null, fractionDigits = 1) {
   if (value == null || Number.isNaN(value)) return "–";
-  return value.toLocaleString("en-US", {
+  return value.toLocaleString("id-ID", {
     minimumFractionDigits: fractionDigits,
     maximumFractionDigits: fractionDigits,
   });
@@ -24,7 +24,7 @@ function formatNumber(value: number | null, fractionDigits = 1) {
 
 function formatInt(value: number | null) {
   if (value == null || Number.isNaN(value)) return "–";
-  return value.toLocaleString("en-US");
+  return value.toLocaleString("id-ID");
 }
 
 function formatDelta(value: number | null, suffix = "") {
@@ -59,7 +59,6 @@ function getDeltaColorClasses(value: number | null) {
   return "border-red-500/40 bg-red-500/10 text-red-600 dark:text-red-400";
 }
 
-
 // ---------- Component ----------
 
 export async function SectionCards() {
@@ -87,11 +86,11 @@ export async function SectionCards() {
 
   return (
     <div className="grid grid-cols-2 gap-2 px-4 sm:grid-cols-1 sm:gap-4 @xl/main:grid-cols-2 @5xl/main:grid-cols-4 lg:px-6 *:data-[slot=card]:bg-gradient-to-t *:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card *:data-[slot=card]:shadow-xs dark:*:data-[slot=card]:bg-card">
-      {/* 1) Total Livestock */}
+      {/* 1) Total Ternak */}
       <Card className="@container/card p-2 px-0 sm:p-4 sm:px-0" data-slot="card">
         <CardHeader>
           <CardDescription className="text-xs sm:text-base">
-            Total Livestock
+            Total Ternak
           </CardDescription>
           <CardTitle className="text-lg sm:text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
             {formatInt(totalLivestock)}
@@ -111,22 +110,22 @@ export async function SectionCards() {
         </CardHeader>
         <CardFooter className="flex-col items-start gap-0.5 sm:gap-1 text-[10px] sm:text-sm font-medium tabular-nums">
           <div className="flex items-center gap-1 font-medium">
-            Change vs last month:
+            Perubahan vs bulan lalu:
             <span className="tabular-nums text-xs text-muted-foreground">
               {formatDelta(totalLivestockDiff)}
             </span>
           </div>
           <div className="text-xs text-muted-foreground">
-            Count of unique RFIDs with at least one weighing in the latest month.
+            Jumlah ternak Anda dengan RFID yang teregistrasi di database.
           </div>
         </CardFooter>
       </Card>
 
-      {/* 2) Average Weight */}
+      {/* 2) Rata-rata Berat */}
       <Card className="@container/card p-2 px-0 sm:p-4 sm:px-0" data-slot="card">
         <CardHeader>
           <CardDescription className="text-xs sm:text-base">
-            Average Weight
+            Rata-rata Berat
           </CardDescription>
           <CardTitle className="text-lg sm:text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
             {avgWeight != null ? `${formatNumber(avgWeight, 1)} kg` : "–"}
@@ -155,7 +154,7 @@ export async function SectionCards() {
         </CardHeader>
         <CardFooter className="flex-col items-start gap-0.5 sm:gap-1 text-[10px] sm:text-sm font-medium tabular-nums">
           <div className="flex items-center gap-1 font-medium">
-            Change vs last month:
+            Perubahan vs bulan lalu:
             <span className="tabular-nums text-xs text-muted-foreground">
               {avgWeightDiff != null
                 ? formatDelta(Number(avgWeightDiff.toFixed(1)), " kg")
@@ -163,16 +162,16 @@ export async function SectionCards() {
             </span>
           </div>
           <div className="text-xs text-muted-foreground">
-            Based on the latest weighing per animal in the latest month.
+            Rata-rata berat ternak yang tercatat pada bulan terbaru.
           </div>
         </CardFooter>
       </Card>
 
-      {/* 3) Stuck & Loss */}
+      {/* 3) Berat Stagnan & Turun */}
       <Card className="@container/card p-2 px-0 sm:p-4 sm:px-0" data-slot="card">
         <CardHeader>
           <CardDescription className="text-xs sm:text-base">
-            Stuck &amp; Loss Weight
+            Berat Stagnan &amp; Turun
           </CardDescription>
           <CardTitle className="text-lg sm:text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
             {formatInt(stuckLossCount)}
@@ -192,22 +191,22 @@ export async function SectionCards() {
         </CardHeader>
         <CardFooter className="flex-col items-start gap-0.5 sm:gap-1 text-[10px] sm:text-sm font-medium tabular-nums">
           <div className="flex items-center gap-1 font-medium">
-            Change vs last month:
+            Perubahan vs bulan lalu:
             <span className="tabular-nums text-xs text-muted-foreground">
               {formatDelta(stuckLossDiff)}
             </span>
           </div>
           <div className="text-xs text-muted-foreground">
-            Animals with neutral or decreasing weight compared to their previous weighing.
+            Jumlah ternak dengan berat stagnan dan turun dibanding penimbangan sebelumnya.
           </div>
         </CardFooter>
       </Card>
 
-      {/* 4) Health Score */}
+      {/* 4) Skor Kesehatan */}
       <Card className="@container/card p-2 px-0 sm:p-4 sm:px-0" data-slot="card">
         <CardHeader>
           <CardDescription className="text-xs sm:text-base">
-            Health Score
+            Skor Pertumbuhan
           </CardDescription>
           <CardTitle className="text-lg sm:text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
             {healthScoreCurrent != null ? healthScoreCurrent : "–"}
@@ -227,14 +226,14 @@ export async function SectionCards() {
         </CardHeader>
         <CardFooter className="flex-col items-start gap-0.5 sm:gap-1 text-[10px] sm:text-sm font-medium tabular-nums">
           <div className="flex items-center gap-1 font-medium">
-            Month-over-month herd condition
+            Kondisi pertumbuhan peternakan
           </div>
           <div className="text-xs text-muted-foreground">
-            Composite score (0–100) based on growth, stable gains, and share of
-            animals without weight loss.
+            Skor 0–100 berdasarkan proporsi pertumbuhan dan
+            penurunan ternak.
           </div>
         </CardFooter>
       </Card>
     </div>
-  ); 
+  );
 }

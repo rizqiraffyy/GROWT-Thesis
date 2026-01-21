@@ -2,8 +2,12 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2 } from "lucide-react";
+import Link from "next/link";
+import { Loader2, LifeBuoy } from "lucide-react";
+
 import { getSupabaseBrowser } from "@/lib/supabase/client";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardHeader,
@@ -12,7 +16,6 @@ import {
   CardContent,
 } from "@/components/ui/card";
 
-// ⬇️ DEMO ACCOUNT (hard-coded, sesuai dengan yang kamu pakai di Supabase)
 const DEMO_EMAIL = "simulation@growt.com";
 const DEMO_PASSWORD = "password";
 
@@ -24,7 +27,7 @@ export default function DemoPage() {
     let cancelled = false;
 
     (async () => {
-      // 1) Cek dulu: kalau sudah login sebagai demo user → langsung ke dashboard
+      // 1) Jika sudah login sebagai demo user → langsung ke dashboard
       const { data, error: userErr } = await supabase.auth.getUser();
 
       if (!cancelled && !userErr && data.user?.email === DEMO_EMAIL) {
@@ -32,7 +35,7 @@ export default function DemoPage() {
         return;
       }
 
-      // 2) Kalau belum, login pakai akun demo
+      // 2) Login pakai akun demo
       const { error } = await supabase.auth.signInWithPassword({
         email: DEMO_EMAIL,
         password: DEMO_PASSWORD,
@@ -43,7 +46,7 @@ export default function DemoPage() {
       if (error) {
         console.error("[/demo] demo login error:", error);
         router.replace(
-          "/auth/signin?error=Demo%20login%20failed.%20Please%20contact%20admin.",
+          "/auth/signin?error=Gagal%20masuk%20akun%20demo.%20Silakan%20coba%20lagi%20atau%20hubungi%20admin.",
         );
       } else {
         router.replace("/main/dashboard");
@@ -56,20 +59,57 @@ export default function DemoPage() {
   }, [router, supabase]);
 
   return (
-    <div className="flex min-h-[60vh] items-center justify-center px-4">
-      <Card className="w-full max-w-sm">
-        <CardHeader>
-          <CardTitle>Entering demo mode…</CardTitle>
-          <CardDescription>
-            We&apos;re signing you in as a simulation user and preparing the
-            dashboard.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Loader2 className="h-4 w-4 animate-spin" />
-          Please wait a moment.
-        </CardContent>
-      </Card>
-    </div>
+    <main className="min-h-screen bg-background px-4 py-10 flex justify-center">
+      <div className="w-full max-w-md space-y-6">
+        {/* Header (template sama) */}
+        <section className="space-y-3 text-center">
+          <Badge
+            variant="outline"
+            className="inline-flex items-center gap-1 text-xs"
+          >
+            <LifeBuoy className="h-3 w-3" />
+            Demo • Akun Simulasi
+          </Badge>
+
+          <h1 className="text-2xl font-bold leading-tight text-foreground sm:text-3xl">
+            Masuk ke akun demo…
+          </h1>
+
+          <p className="mx-auto max-w-sm text-sm text-muted-foreground">
+            Kami sedang masuk sebagai pengguna simulasi dan menyiapkan dashboard untuk Anda.
+          </p>
+        </section>
+
+        <Card className="border-primary/10 bg-background/80">
+          <CardHeader>
+            <CardTitle className="text-base">Sedang menyiapkan dashboard</CardTitle>
+            <CardDescription className="text-sm">
+              Jika proses ini terlalu lama, kemungkinan koneksi sedang lambat atau akun demo
+              sedang bermasalah.
+            </CardDescription>
+          </CardHeader>
+
+          <CardContent className="space-y-4">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Mohon tunggu sebentar…
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              <Button asChild size="sm" variant="outline" className="flex-1">
+                <Link href="/auth/signin">Ke halaman Masuk</Link>
+              </Button>
+              <Button asChild size="sm" variant="ghost" className="flex-1">
+                <Link href="/">Kembali ke beranda</Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        <p className="text-center text-[11px] text-muted-foreground">
+          Catatan: akun demo digunakan hanya untuk melihat contoh data (read-only pada beberapa fitur).
+        </p>
+      </div>
+    </main>
   );
 }

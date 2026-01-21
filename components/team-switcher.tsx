@@ -57,16 +57,16 @@ export function TeamSwitcher({ app }: { app: AppBrand }) {
             </SidebarMenuButton>
           </DropdownMenuTrigger>
 
-          {/* About this website */}
+          {/* Quick note */}
           <DropdownMenuContent
-            className="w-[min(17rem,calc(100vw-3rem))] min-w-64 rounded-lg text-[11px] leading-snug"
+            className="w-[min(18rem,calc(100vw-3rem))] min-w-64 rounded-lg text-[11px] leading-snug"
             align="start"
             side={isMobile ? "bottom" : "right"}
             sideOffset={4}
           >
             <DropdownMenuLabel className="space-y-1 px-2 py-1.5">
               <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                About this application
+                Ringkasan cepat
               </p>
               <p className="text-xs font-medium">
                 {app.name} — {app.subtitle}
@@ -75,90 +75,83 @@ export function TeamSwitcher({ app }: { app: AppBrand }) {
 
             <DropdownMenuSeparator />
 
-            {/* Overview */}
+            {/* Alur singkat */}
             <DropdownMenuItem
               disabled
-              className="cursor-default flex items-start gap-2 py-2 text-muted-foreground"
-            >
-              <span className="mt-1 inline-block size-1.5 rounded-full bg-primary" />
-              <span>
-                Growt is a livestock monitoring dashboard that connects RFID tags,
-                IoT weighing devices, and a Supabase cloud database. Every weighing
-                is stored with a timestamp, linked to a livestock profile, and
-                visualized through cards, tables, and charts.
-              </span>
-            </DropdownMenuItem>
-
-            {/* What you can do */}
-            <DropdownMenuItem
-              disabled
-              className="cursor-default flex flex-col items-start gap-1 py-1.5 text-muted-foreground"
+              className="cursor-default flex flex-col items-start gap-1.5 py-2 text-muted-foreground"
             >
               <span className="font-semibold text-foreground">
-                What you can do here:
+                Alur penggunaan:
               </span>
-              <ul className="ml-4 list-disc space-y-0.5">
+              <ol className="ml-4 list-decimal space-y-0.5">
                 <li>
-                  Complete farmer details and address in{" "}
-                  <span className="font-medium">Settings</span> so livestock and logs
-                  are correctly linked to your account.
+                  Lengkapi <span className="font-medium text-foreground">Pengaturan</span> (profil &amp; alamat).
                 </li>
                 <li>
-                  Add livestock with species, breed, sex, age, photo, and RFID tags
-                  stored in the database.
+                  Daftarkan ternak &amp; pastikan <span className="font-medium text-foreground">RFID</span> sesuai.
                 </li>
                 <li>
-                  Let your IoT scale read the RFID and send new weighings
-                  automatically as data logs.
+                  Hubungkan di <span className="font-medium text-foreground">Perangkat</span> agar log terkirim.
                 </li>
                 <li>
-                  Monitor <span className="font-medium">Dashboard</span> KPIs:
-                  total livestock, average weight, stuck &amp; loss cases, and
-                  Health Score (1–100).
+                  Pantau di <span className="font-medium text-foreground">Dashboard</span> &amp;{" "}
+                  <span className="font-medium text-foreground">Log Data</span>.
                 </li>
-                <li>
-                  Review all weighing history in{" "}
-                  <span className="font-medium">Data Logs</span> to detect animals
-                  with stagnant or declining weight earlier.
-                </li>
-                <li>
-                  Use the <span className="font-medium">Shared</span> toggle in the
-                  livestock list to publish selected animals to the{" "}
-                  <span className="font-medium">Global</span> page and contribute
-                  to aggregated public statistics.
-                </li>
-              </ul>
+              </ol>
             </DropdownMenuItem>
 
             <DropdownMenuSeparator />
 
-            {/* Basic workflow */}
+            {/* Fungsi halaman */}
             <DropdownMenuItem
               disabled
-              className="cursor-default flex flex-col items-start gap-1 py-1.5 text-muted-foreground"
+              className="cursor-default flex flex-col items-start gap-2 py-2 text-muted-foreground"
             >
               <span className="font-semibold text-foreground">
-                Basic workflow:
+                Fungsi halaman utama:
               </span>
-              <ol className="ml-4 list-decimal space-y-0.5">
-                <li>Sign up or sign in to your account.</li>
-                <li>
-                  Go to <span className="font-medium">Settings</span> and fill in
-                  farmer information and address.
-                </li>
-                <li>
-                  Register livestock and link each animal to an RFID tag in the
-                  database.
-                </li>
-                <li>
-                  Connect your IoT scale so each weighing is logged automatically
-                  based on the RFID read.
-                </li>
-                <li>
-                  Use Dashboard, Data Logs, and Global to monitor growth, identify
-                  stuck or loss cases, and review overall herd condition.
-                </li>
-              </ol>
+
+              <div className="flex items-start gap-2">
+                <span className="mt-1 inline-block size-1.5 rounded-full bg-primary" />
+                <span>
+                  <span className="font-medium text-foreground">Dashboard</span>: ringkasan KPI &amp; tren berat.
+                </span>
+              </div>
+
+              <div className="flex items-start gap-2">
+                <span className="mt-1 inline-block size-1.5 rounded-full bg-primary" />
+                <span>
+                  <span className="font-medium text-foreground">Detail Ternak</span>: profil, grafik, dan riwayat log per RFID.
+                </span>
+              </div>
+
+              <div className="flex items-start gap-2">
+                <span className="mt-1 inline-block size-1.5 rounded-full bg-primary" />
+                <span>
+                  <span className="font-medium text-foreground">Log Data</span>: seluruh penimbangan, filter, dan ekspor.
+                </span>
+              </div>
+
+              <div className="flex items-start gap-2">
+                <span className="mt-1 inline-block size-1.5 rounded-full bg-primary" />
+                <span>
+                  <span className="font-medium text-foreground">Perangkat</span>: kontrol IoT (status koneksi, pairing RFID, dan pengiriman data).
+                </span>
+              </div>
+
+              <div className="flex items-start gap-2">
+                <span className="mt-1 inline-block size-1.5 rounded-full bg-primary" />
+                <span>
+                  <span className="font-medium text-foreground">Publik</span>: ternak dibagikan &amp; statistik agregat (read-only).
+                </span>
+              </div>
+
+              <div className="flex items-start gap-2">
+                <span className="mt-1 inline-block size-1.5 rounded-full bg-primary" />
+                <span>
+                  <span className="font-medium text-foreground">Pengaturan</span>: profil akun, alamat, dan pengaturan data.
+                </span>
+              </div>
             </DropdownMenuItem>
 
             <DropdownMenuSeparator />
@@ -167,8 +160,8 @@ export function TeamSwitcher({ app }: { app: AppBrand }) {
               disabled
               className="cursor-default py-1.5 text-[10px] text-muted-foreground"
             >
-              Designed to be simple, focused, and farmer-friendly — so your time
-              goes to your livestock, not spreadsheets.
+              Detail lengkap ada di halaman{" "}
+              <span className="font-medium text-foreground">Bantuan</span>.
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

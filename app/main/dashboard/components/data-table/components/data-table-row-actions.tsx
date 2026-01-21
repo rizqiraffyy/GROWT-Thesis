@@ -34,9 +34,9 @@ export function DataTableRowActions<TData extends HasRFID>({
 
       <DropdownMenuContent align="end">
         <DropdownMenuItem
-          onClick={() => router.push(`/main/dashboard/${rfid}/details`)}
+          onClick={() => router.push(`/main/dashboard/${rfid}`)}
         >
-          Details
+          Detail
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

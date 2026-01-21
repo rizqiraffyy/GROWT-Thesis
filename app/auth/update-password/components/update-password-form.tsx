@@ -1,4 +1,3 @@
-// app/auth/update-password/components/update-password-form.tsx
 "use client"
 
 import { useEffect, useState } from "react"
@@ -19,41 +18,30 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import {
-  Field,
-  FieldDescription,
-  FieldGroup,
-  FieldLabel,
-} from "@/components/ui/field"
+import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { ModeToggle } from "@/components/dark-mode"
 
-// note: align field names with API route: password + confirmPassword
+// catatan: samakan nama field dengan API route: password + confirmPassword
 const schema = z
   .object({
-    password: z
-      .string()
-      .min(8, "Password must be at least 8 characters"),
-    confirmPassword: z
-      .string()
-      .min(1, "Please confirm your password"),
+    password: z.string().min(8, "Kata sandi minimal 8 karakter"),
+    confirmPassword: z.string().min(1, "Tolong konfirmasi kata sandi"),
   })
   .refine((v) => v.password === v.confirmPassword, {
     path: ["confirmPassword"],
-    message: "Passwords do not match",
+    message: "Konfirmasi kata sandi tidak sama",
   })
 
 type FormData = z.infer<typeof schema>
 
-// note: typed response from /api/auth/update-password
+// catatan: typed response dari /api/auth/update-password
 interface UpdatePasswordResponse {
   success?: boolean
   error?: string
 }
 
-export function UpdatePasswordForm(
-  props: React.ComponentProps<"div">,
-) {
+export function UpdatePasswordForm(props: React.ComponentProps<"div">) {
   const router = useRouter()
 
   const [showPw, setShowPw] = useState(false)
@@ -72,7 +60,7 @@ export function UpdatePasswordForm(
     mode: "onChange",
   })
 
-  // note: check recovery session client-side for better UX
+  // catatan: cek recovery session di client biar UX lebih jelas
   useEffect(() => {
     const run = async () => {
       const supabase = getSupabaseBrowser()
@@ -101,7 +89,7 @@ export function UpdatePasswordForm(
     setErrorMessage(null)
 
     try {
-      // note: delegate password update to the API route
+      // catatan: update password via API route
       const res = await fetch("/api/auth/update-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -117,17 +105,15 @@ export function UpdatePasswordForm(
 
       if (!res.ok || !json?.success) {
         throw new Error(
-          json?.error ||
-            "Failed to update password. Please try again.",
+          json?.error || "Gagal memperbarui kata sandi. Coba lagi, ya.",
         )
       }
 
       reset()
-      // note: after updating, send user back to signin
+      // catatan: setelah berhasil, arahkan ke halaman masuk
       router.push("/auth/signin")
     } catch (e) {
-      const msg =
-        e instanceof Error ? e.message : "Unexpected error"
+      const msg = e instanceof Error ? e.message : "Terjadi kendala."
       setErrorMessage(msg)
     } finally {
       setLoading(false)
@@ -142,47 +128,41 @@ export function UpdatePasswordForm(
 
       <Card>
         <CardHeader className="text-center">
-          <CardTitle className="text-xl">Set a new password</CardTitle>
+          <CardTitle className="text-xl">Buat Kata Sandi Baru</CardTitle>
           <CardDescription>
-            Enter your new password below to secure your account.
+            Masukkan kata sandi baru untuk mengamankan akun kamu.
           </CardDescription>
         </CardHeader>
 
         <CardContent>
-          <form
-            onSubmit={handleSubmit(onSubmit)}
-            className="space-y-4"
-          >
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <FieldGroup>
-              {/* note: if session is missing, show warning + disable inputs */}
+              {/* kalau session recovery tidak ada, tampilkan peringatan + disable input */}
               {sessionMissing && (
                 <FieldDescription className="text-red-600">
-                  Recovery session not found. Please request a new
-                  reset link from{" "}
+                  Sesi pemulihan tidak ditemukan. Silakan minta tautan reset yang baru lewat{" "}
                   <a
                     href="/auth/forgot-password"
                     className="underline text-primary"
                   >
-                    Forgot Password
+                    Lupa Kata Sandi
                   </a>
+                  .
                 </FieldDescription>
               )}
 
-              {/* New password */}
+              {/* Password baru */}
               <Field>
-                <FieldLabel htmlFor="password">
-                  New Password
-                </FieldLabel>
+                <FieldLabel htmlFor="password">Kata sandi baru</FieldLabel>
                 <div className="relative">
                   <Input
                     id="password"
                     type={showPw ? "text" : "password"}
-                    placeholder="Create a strong password (min. 8 characters)"
+                    placeholder="Buat kata sandi yang kuat (min. 8 karakter)"
                     {...register("password")}
                     className={cn(
                       "pr-10",
-                      errors.password &&
-                        "border-red-500 focus-visible:ring-red-500",
+                      errors.password && "border-red-500 focus-visible:ring-red-500",
                     )}
                     disabled={loading || sessionMissing}
                     autoComplete="new-password"
@@ -191,9 +171,7 @@ export function UpdatePasswordForm(
                     type="button"
                     onClick={() => setShowPw((v) => !v)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground/70 hover:text-foreground"
-                    aria-label={
-                      showPw ? "Hide password" : "Show password"
-                    }
+                    aria-label={showPw ? "Sembunyikan kata sandi" : "Tampilkan kata sandi"}
                     disabled={loading || sessionMissing}
                   >
                     {showPw ? (
@@ -210,16 +188,16 @@ export function UpdatePasswordForm(
                 )}
               </Field>
 
-              {/* Confirm password */}
+              {/* Konfirmasi password */}
               <Field>
                 <FieldLabel htmlFor="confirmPassword">
-                  Confirm New Password
+                  Konfirmasi kata sandi baru
                 </FieldLabel>
                 <div className="relative">
                   <Input
                     id="confirmPassword"
                     type={showPw2 ? "text" : "password"}
-                    placeholder="Re-enter your new password"
+                    placeholder="Ulangi kata sandi baru"
                     {...register("confirmPassword")}
                     className={cn(
                       "pr-10",
@@ -234,7 +212,7 @@ export function UpdatePasswordForm(
                     onClick={() => setShowPw2((v) => !v)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground/70 hover:text-foreground"
                     aria-label={
-                      showPw2 ? "Hide password" : "Show password"
+                      showPw2 ? "Sembunyikan konfirmasi kata sandi" : "Tampilkan konfirmasi kata sandi"
                     }
                     disabled={loading || sessionMissing}
                   >
@@ -252,7 +230,7 @@ export function UpdatePasswordForm(
                 )}
               </Field>
 
-              {/* Server error */}
+              {/* Error dari server */}
               {errorMessage && (
                 <FieldDescription className="text-red-600">
                   {errorMessage}
@@ -264,21 +242,15 @@ export function UpdatePasswordForm(
                 <Button
                   type="submit"
                   className="w-full"
-                  disabled={
-                    !isValid || loading || sessionMissing
-                  }
+                  disabled={!isValid || loading || sessionMissing}
                 >
-                  {loading
-                    ? "Updating password..."
-                    : "Update Password"}
+                  {loading ? "Sedang memperbarui..." : "Perbarui Kata Sandi"}
                 </Button>
+
                 <FieldDescription className="text-center">
-                  Changed your mind?{" "}
-                  <a
-                    href="/auth/signin"
-                    className="text-primary"
-                  >
-                    Back to Sign in
+                  Batal ganti kata sandi?{" "}
+                  <a href="/auth/signin" className="text-primary">
+                    Kembali ke halaman masuk
                   </a>
                 </FieldDescription>
               </Field>
@@ -286,15 +258,15 @@ export function UpdatePasswordForm(
           </form>
         </CardContent>
       </Card>
+
       <FieldDescription className="px-6 text-center">
-        {/* note: legal / policy footer copy */}
-        By continuing, you agree to our{" "}
-        <a href="/legal/terms" className="underline">
-          Terms of Service
+        Dengan melanjutkan, Anda menyetujui{" "}
+        <a href="/legal/syarat" className="underline">
+          Syarat Layanan
         </a>{" "}
-        and{" "}
-        <a href="/legal/privacy" className="underline">
-          Privacy Policy
+        serta{" "}
+        <a href="/legal/privasi" className="underline">
+          Kebijakan Privasi
         </a>
         .
       </FieldDescription>

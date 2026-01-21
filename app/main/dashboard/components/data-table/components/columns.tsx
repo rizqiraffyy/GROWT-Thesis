@@ -56,7 +56,6 @@ function SharedSwitchCell({ row }: { row: Row<Task> }) {
   );
 }
 
-
 export const columns: ColumnDef<Task>[] = [
   {
     id: "select",
@@ -87,7 +86,7 @@ export const columns: ColumnDef<Task>[] = [
   {
     accessorKey: "is_public",
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Shared" />
+      <DataTableColumnHeader column={column} title="Publik" />
     ),
     cell: ({ row }) => <SharedSwitchCell row={row} />,
     enableSorting: false,
@@ -99,7 +98,7 @@ export const columns: ColumnDef<Task>[] = [
     id: "photo",
     accessorKey: "photo_url",
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Photo" />
+      <DataTableColumnHeader column={column} title="Foto" />
     ),
     cell: ({ row }) => {
       const url = row.original.photo_url;
@@ -108,7 +107,7 @@ export const columns: ColumnDef<Task>[] = [
       return (
         <Avatar className="h-8 w-8">
           {url && (
-            <AvatarImage src={url} alt={name ?? "Livestock photo"} />
+            <AvatarImage src={url} alt={name ?? "Foto ternak"} />
           )}
           <AvatarFallback className="text-xs">
             <PawPrint className="size-4" />
@@ -140,10 +139,10 @@ export const columns: ColumnDef<Task>[] = [
     id: "livestock",
     accessorKey: "name", // ⬅ untuk sorting/filter
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Livestock" />
+      <DataTableColumnHeader column={column} title="Ternak" />
     ),
     cell: ({ row }) => {
-      const name = row.original.name ?? "Unnamed";
+      const name = row.original.name ?? "Tanpa Nama";
       const breedOrSpecies =
         row.original.breed ?? row.original.species ?? "-";
 
@@ -163,12 +162,12 @@ export const columns: ColumnDef<Task>[] = [
   {
     accessorKey: "species",
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Species" />
+      <DataTableColumnHeader column={column} title="Spesies" />
     ),
     cell: ({ row }) => {
       const value = row.getValue("species") as string | null;
       if (!value) {
-        return <span className="text-xs text-muted-foreground">Undefined</span>;
+        return <span className="text-xs text-muted-foreground">Belum Diisi</span>;
       }
 
       const option = speciesOptions.find((opt) => opt.value === value);
@@ -195,7 +194,7 @@ export const columns: ColumnDef<Task>[] = [
   {
     accessorKey: "sex",
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Sex" />
+      <DataTableColumnHeader column={column} title="Kelamin" />
     ),
     cell: ({ row }) => {
       const value = row.getValue("sex") as string | null;
@@ -230,7 +229,7 @@ export const columns: ColumnDef<Task>[] = [
   {
     accessorKey: "weight",
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Weight (kg)" />
+      <DataTableColumnHeader column={column} title="Berat (kg)" />
     ),
     cell: ({ row }) => {
       const value = row.getValue("weight") as number | null;
@@ -305,10 +304,10 @@ export const columns: ColumnDef<Task>[] = [
 
       const label =
         status === "good"
-          ? "Gain"
+          ? "Naik"
           : status === "bad"
-          ? "Loss"
-          : "Stable";
+          ? "Turun"
+          : "Stabil";
 
       const Icon =
         status === "good"
@@ -339,11 +338,11 @@ export const columns: ColumnDef<Task>[] = [
     },
   },
 
-  // 👶🧑‍🦱🧑‍🦳 Stage
+  // Stage
   {
     accessorKey: "lifeStage",
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Stage" />
+      <DataTableColumnHeader column={column} title="Tahap Umur" />
     ),
     cell: ({ row }) => {
       const value = row.getValue("lifeStage") as string | null;
@@ -386,7 +385,7 @@ export const columns: ColumnDef<Task>[] = [
       return years * 12 + months + days / 30;
     },
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Age" />
+      <DataTableColumnHeader column={column} title="Umur" />
     ),
     cell: ({ row }) => {
       const age = row.original.age;
@@ -394,7 +393,7 @@ export const columns: ColumnDef<Task>[] = [
 
       return (
         <span>
-          {age.years} y; {age.months} m; {age.days} d
+          {age.years} thn; {age.months} bln; {age.days} hr
         </span>
       );
     },
@@ -405,7 +404,7 @@ export const columns: ColumnDef<Task>[] = [
   {
     accessorKey: "weight_created_at",
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Weighing" />
+      <DataTableColumnHeader column={column} title="Penimbangan" />
     ),
     cell: ({ row }) => {
       const raw = row.getValue("weight_created_at") as string;
@@ -417,12 +416,12 @@ export const columns: ColumnDef<Task>[] = [
 
       return (
         <span className="text-xs text-muted-foreground">
-          {date.toLocaleDateString("en-US", {
+          {date.toLocaleDateString("id-ID", {
             month: "short",
             day: "2-digit",
             year: "numeric",
           })}{" • "}
-          {date.toLocaleTimeString("en-US", {
+          {date.toLocaleTimeString("id-ID", {
             hour: "2-digit",
             minute: "2-digit",
             hour12: false,

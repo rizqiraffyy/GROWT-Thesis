@@ -3,6 +3,28 @@ import { barn } from '@lucide/lab';
 
 import { ForgotPasswordForm } from "./components/forgot-password-form"
 
+import { redirect } from "next/navigation";
+import { getSupabaseServerReadOnly } from "@/lib/supabase/server";
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+export async function generateMetadata() {
+  const supabase = await getSupabaseServerReadOnly();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (user) {
+    // sudah login → tendang ke main
+    redirect("/main/dashboard");
+  }
+
+  return {
+    title: "Forgot Password - GROWT",
+    description: "Reset your GROWT account password.",
+  };
+}
+
 export default function ForgotPasswordPage() {
   return (
     <div className="bg-muted flex min-h-svh flex-col items-center justify-center gap-6 p-6 md:p-10">

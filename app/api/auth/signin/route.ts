@@ -63,13 +63,13 @@ async function supabaseFromRoute() {
 }
 
 export async function POST(req: NextRequest) {
-  // note: method check removed — this handler only runs for POST anyway
+  const noStore = { "Cache-Control": "no-store" as const };
 
   const contentType = req.headers.get("content-type") ?? "";
   if (!contentType.includes("application/json")) {
     return NextResponse.json(
       { success: false, error: "Invalid content type" },
-      { status: 415, headers: { "Cache-Control": "no-store" } },
+      { status: 415, headers: noStore },
     );
   }
 
@@ -84,7 +84,7 @@ export async function POST(req: NextRequest) {
       if (host && o.host !== host) {
         return NextResponse.json(
           { success: false, error: "Invalid origin" },
-          { status: 400, headers: { "Cache-Control": "no-store" } },
+          { status: 400, headers: noStore },
         );
       }
     } catch {}
@@ -96,7 +96,7 @@ export async function POST(req: NextRequest) {
       if (host && r.host !== host) {
         return NextResponse.json(
           { success: false, error: "Invalid referer" },
-          { status: 400, headers: { "Cache-Control": "no-store" } },
+          { status: 400, headers: noStore },
         );
       }
     } catch {}
@@ -109,7 +109,7 @@ export async function POST(req: NextRequest) {
   } catch {
     return NextResponse.json(
       { success: false, error: "Invalid JSON body" },
-      { status: 400, headers: { "Cache-Control": "no-store" } },
+      { status: 400, headers: noStore },
     );
   }
 
@@ -118,7 +118,7 @@ export async function POST(req: NextRequest) {
   if (!parsed.success) {
     return NextResponse.json(
       { success: false, error: "Validation failed", fields: parsed.error.flatten().fieldErrors },
-      { status: 400, headers: { "Cache-Control": "no-store" } },
+      { status: 400, headers: noStore },
     );
   }
 
@@ -130,12 +130,20 @@ export async function POST(req: NextRequest) {
     // note: if already logged in, don’t sign in again
     const { data: sessionData } = await supabase.auth.getSession();
     if (sessionData.session) {
-      const redirect =
-        getRedirectFromBody(rawBody) ?? getRedirectFromQuery(req) ?? "/main/dashboard";
+      const user = sessionData.session.user;
+      const appMeta = (user?.app_metadata ?? {}) as Record<string, unknown>;
+      const role = appMeta["role"]?.toString();
+
+      const explicitRedirect =
+        getRedirectFromBody(rawBody) ?? getRedirectFromQuery(req);
+
+      // ⬇️ default redirect based on role
+      const fallbackRedirect = role === "admin" ? "/main/kontrol" : "/main/dashboard";
+      const redirect = explicitRedirect ?? fallbackRedirect;
 
       return NextResponse.json(
         { success: true, redirect },
-        { headers: { "Cache-Control": "no-store" } },
+        { headers: noStore },
       );
     }
 
@@ -145,23 +153,34 @@ export async function POST(req: NextRequest) {
       console.error("[signin] Supabase error:", error);
       return NextResponse.json(
         { success: false, error: error.message },
-        { status: 401, headers: { "Cache-Control": "no-store" } },
+        { status: 401, headers: noStore },
       );
     }
 
-    const redirect =
-      getRedirectFromBody(rawBody) ?? getRedirectFromQuery(req) ?? "/main/dashboard";
+    // ⬇️ ambil user setelah sign-in biar dapat app_metadata.role terbaru
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    const appMeta = (user?.app_metadata ?? {}) as Record<string, unknown>;
+    const role = appMeta["role"]?.toString();
+
+    const explicitRedirect =
+      getRedirectFromBody(rawBody) ?? getRedirectFromQuery(req);
+
+    const fallbackRedirect = role === "admin" ? "/main/kontrol" : "/main/dashboard";
+    const redirect = explicitRedirect ?? fallbackRedirect;
 
     return NextResponse.json(
       { success: true, redirect },
-      { headers: { "Cache-Control": "no-store" } },
+      { headers: noStore },
     );
   } catch (e) {
     // note: don’t expose internal errors to client — log only
     console.error("[signin] Fatal error:", e);
     return NextResponse.json(
       { success: false, error: "Internal server error" },
-      { status: 500, headers: { "Cache-Control": "no-store" } },
+      { status: 500, headers: noStore },
     );
   }
 }

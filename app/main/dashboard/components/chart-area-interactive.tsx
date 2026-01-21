@@ -1,8 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Area, AreaChart, CartesianGrid, XAxis } from "recharts";
-import { YAxis } from "recharts";
+import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
 
 import { useIsMobile } from "@/hooks/use-mobile";
 import {
@@ -33,24 +32,24 @@ type ValueMode = "percent" | "raw";
 
 const chartConfig = {
   totalLivestockPct: {
-    label: "Total livestock",
+    label: "Total ternak",
     color: "var(--chart-1)",
   },
   avgWeightPct: {
-    label: "Average weight",
+    label: "Rata-rata berat",
     color: "var(--chart-2)",
   },
   stuckLossPct: {
-    label: "Stuck & loss",
+    label: "Stagnan & turun",
     color: "var(--chart-3)",
   },
   healthScoreDelta: {
-    label: "Health score",
+    label: "Skor kesehatan",
     color: "var(--chart-4)",
   },
 } satisfies ChartConfig;
 
-export const description = "Livestock KPI month-over-month trend";
+export const description = "Tren KPI ternak dari bulan ke bulan";
 
 interface ChartAreaInteractiveProps {
   data: DashboardMonthlyPoint[];
@@ -59,7 +58,7 @@ interface ChartAreaInteractiveProps {
 export function ChartAreaInteractive({ data }: ChartAreaInteractiveProps) {
   const isMobile = useIsMobile();
   const [timeRange, setTimeRange] = React.useState<TimeRange>("12m");
-  const [valueMode, setValueMode] = React.useState<ValueMode>("percent"); // ⬅️ mode baru
+  const [valueMode, setValueMode] = React.useState<ValueMode>("percent");
 
   React.useEffect(() => {
     if (isMobile) {
@@ -84,76 +83,48 @@ export function ChartAreaInteractive({ data }: ChartAreaInteractiveProps) {
       <CardHeader>
         <div className="flex flex-col gap-2 @[540px]/card:flex-row @[540px]/card:items-center @[540px]/card:justify-between">
           <div>
-            <CardTitle>Livestock Performance</CardTitle>
+            <CardTitle>Performa Peternakan</CardTitle>
             <CardDescription>
-              Month-over-month trends for herd size, weight, risk, and health score.
+              Tren bulanan untuk total ternak, perkembangan berat dan skor pertumbuhan.
             </CardDescription>
           </div>
-          <CardAction
-            className="
-              flex flex-row flex-wrap items-center justify-end
-              gap-2
-            "
-          >
-            {/* Select: time range */}
+
+          <CardAction className="flex flex-row flex-wrap items-center justify-end gap-2">
+            {/* Select: rentang waktu */}
             <Select
               value={timeRange}
               onValueChange={(value) => setTimeRange(value as TimeRange)}
             >
               <SelectTrigger
                 size="sm"
-                className="
-                  min-w-[130px]
-                  w-[130px]
-                  text-xs
-                  @[540px]/card:w-40
-                  @[540px]/card:text-sm
-                "
+                className="min-w-[130px] w-[130px] text-xs @[540px]/card:w-40 @[540px]/card:text-sm"
               >
-                <SelectValue placeholder="Time range" />
+                <SelectValue placeholder="Rentang waktu" />
               </SelectTrigger>
-              <SelectContent
-                className="
-                  rounded-xl
-                  text-xs
-                  @[540px]/card:text-sm
-                "
-              >
-                <SelectItem value="3m">Last 3 months</SelectItem>
-                <SelectItem value="6m">Last 6 months</SelectItem>
-                <SelectItem value="12m">Last 12 months</SelectItem>
-                <SelectItem value="18m">Last 1.5 years</SelectItem>
-                <SelectItem value="24m">Last 2 years</SelectItem>
-                <SelectItem value="all">All</SelectItem>
+              <SelectContent className="rounded-xl text-xs @[540px]/card:text-sm">
+                <SelectItem value="3m">3 bulan terakhir</SelectItem>
+                <SelectItem value="6m">6 bulan terakhir</SelectItem>
+                <SelectItem value="12m">12 bulan terakhir</SelectItem>
+                <SelectItem value="18m">1,5 tahun terakhir</SelectItem>
+                <SelectItem value="24m">2 tahun terakhir</SelectItem>
+                <SelectItem value="all">Semua</SelectItem>
               </SelectContent>
             </Select>
 
-            {/* Select: value type (raw / %) */}
+            {/* Select: tipe nilai (nilai asli / %) */}
             <Select
               value={valueMode}
               onValueChange={(value) => setValueMode(value as ValueMode)}
             >
               <SelectTrigger
                 size="sm"
-                className="
-                  min-w-[130px]
-                  w-[130px]
-                  text-xs
-                  @[540px]/card:w-40
-                  @[540px]/card:text-sm
-                "
+                className="min-w-[130px] w-[130px] text-xs @[540px]/card:w-40 @[540px]/card:text-sm"
               >
-                <SelectValue placeholder="Value type" />
+                <SelectValue placeholder="Tipe nilai" />
               </SelectTrigger>
-              <SelectContent
-                className="
-                  rounded-xl
-                  text-xs
-                  @[540px]/card:text-sm
-                "
-              >
-                <SelectItem value="percent">Percentage (MoM)</SelectItem>
-                <SelectItem value="raw">Raw value</SelectItem>
+              <SelectContent className="rounded-xl text-xs @[540px]/card:text-sm">
+                <SelectItem value="percent">Persentase</SelectItem>
+                <SelectItem value="raw">Nilai asli</SelectItem>
               </SelectContent>
             </Select>
           </CardAction>
@@ -163,7 +134,7 @@ export function ChartAreaInteractive({ data }: ChartAreaInteractiveProps) {
       <CardContent className="px-2 pt-4 sm:px-6 sm:pt-6">
         {filteredData.length === 0 ? (
           <div className="flex h-[250px] items-center justify-center text-xs text-muted-foreground">
-            No data available yet for the selected period.
+            Belum ada data untuk periode yang dipilih.
           </div>
         ) : (
           <ChartContainer
@@ -239,21 +210,19 @@ export function ChartAreaInteractive({ data }: ChartAreaInteractiveProps) {
                 axisLine={false}
                 tickMargin={8}
                 tickFormatter={(val) => {
-                  if (valueMode === "percent") {
-                    return `${Number(val).toFixed(0)}%`;
-                  }
+                  if (valueMode === "percent") return `${Number(val).toFixed(0)}%`;
                   return Number(val).toFixed(0);
                 }}
               />
+
               <ChartTooltip
                 cursor={false}
                 content={<ChartTooltipContent indicator="dot" />}
               />
 
-              {/* 4 metrics: dataKey switch based on valueMode */}
               <Area
                 dataKey={valueMode === "percent" ? "totalLivestockPct" : "totalLivestock"}
-                name="Total livestock"
+                name="Total ternak"
                 type="natural"
                 fill="url(#fillTotal)"
                 stroke="var(--color-totalLivestockPct)"
@@ -261,7 +230,7 @@ export function ChartAreaInteractive({ data }: ChartAreaInteractiveProps) {
               />
               <Area
                 dataKey={valueMode === "percent" ? "avgWeightPct" : "avgWeight"}
-                name="Average Weight"
+                name="Rata-rata berat"
                 type="natural"
                 fill="url(#fillAvg)"
                 stroke="var(--color-avgWeightPct)"
@@ -269,7 +238,7 @@ export function ChartAreaInteractive({ data }: ChartAreaInteractiveProps) {
               />
               <Area
                 dataKey={valueMode === "percent" ? "stuckLossPct" : "stuckLossCount"}
-                name="Stuck & Loss"
+                name="Stagnan & turun"
                 type="natural"
                 fill="url(#fillStuck)"
                 stroke="var(--color-stuckLossPct)"
@@ -277,7 +246,7 @@ export function ChartAreaInteractive({ data }: ChartAreaInteractiveProps) {
               />
               <Area
                 dataKey={valueMode === "percent" ? "healthScoreDelta" : "healthScore"}
-                name="Health Score"
+                name="Skor kesehatan"
                 type="natural"
                 fill="url(#fillHealth)"
                 stroke="var(--color-healthScoreDelta)"

@@ -1,4 +1,3 @@
-// components/app-sidebar.tsx
 "use client"
 
 import * as React from "react"
@@ -16,9 +15,17 @@ import {
   IconMail,
   IconScale,
   IconShieldLock,
+  IconCpu,
+  IconPaw,
+  IconSettings,
   type Icon,
 } from "@tabler/icons-react"
-
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
 import { NavUser } from "@/components/nav-user"
 import { TeamSwitcher } from "@/components/team-switcher"
 import {
@@ -55,31 +62,58 @@ const BarnIcon = (props: React.SVGProps<SVGSVGElement>) => (
 )
 
 const supportItems: NavItem[] = [
-  { title: "Get Help", url: "/support/get-help", icon: IconLifebuoy },
-  { title: "FAQ", url: "/support/faq", icon: IconHelpCircle },
-  { title: "Guides", url: "/support/guides", icon: IconBook2 },
-  { title: "Contacts", url: "/support/contacts", icon: IconMail },
-  { title: "Terms of Service", url: "/legal/terms", icon: IconScale },
-  { title: "Privacy Policy", url: "/legal/privacy", icon: IconShieldLock },
+  { title: "Bantuan", url: "/bantuan", icon: IconLifebuoy },
+  { title: "FAQ", url: "/bantuan/faq", icon: IconHelpCircle },
+  { title: "Panduan", url: "/bantuan/panduan", icon: IconBook2 },
+  { title: "Kontak", url: "/bantuan/kontak", icon: IconMail },
+  { title: "Syarat Layanan", url: "/legal/syarat", icon: IconScale },
+  { title: "Kebijakan Privasi", url: "/legal/privasi", icon: IconShieldLock },
 ]
 
 function NavMain({ items }: { items: NavItem[] }) {
   return (
     <SidebarGroup>
       <SidebarGroupContent className="flex flex-col gap-3">
-        {/* Add Livestock */}
+        {/* Register Dropdown */}
         <SidebarMenu>
-          <SidebarMenuItem className="flex items-center gap-2">
-            <SidebarMenuButton
-              asChild
-              tooltip="Add New Livestock?"
-              className="bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground active:bg-primary/90 active:text-primary-foreground min-w-8 duration-200 ease-linear"
-            >
-              <Link href="/main/add-livestock">
-                <IconCirclePlusFilled />
-                <span>Add Livestock</span>
-              </Link>
-            </SidebarMenuButton>
+          <SidebarMenuItem>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <SidebarMenuButton
+                  tooltip="Register livestock or device"
+                  className="bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground active:bg-primary/90 active:text-primary-foreground min-w-8 duration-200 ease-linear"
+                >
+                  <IconCirclePlusFilled />
+                  <span>Registrasi</span>
+                </SidebarMenuButton>
+              </DropdownMenuTrigger>
+
+              <DropdownMenuContent
+                side="right"
+                align="start"
+                className="min-w-40"
+              >
+                <DropdownMenuItem asChild>
+                  <Link
+                    href="/main/registrasi-ternak"
+                    className="flex items-center gap-2"
+                  >
+                    <IconPaw className="w-4 h-4" />
+                    <span>Ternak</span>
+                  </Link>
+                </DropdownMenuItem>
+
+                <DropdownMenuItem asChild>
+                  <Link
+                    href="/main/registrasi-perangkat"
+                    className="flex items-center gap-2"
+                  >
+                    <IconCpu className="w-4 h-4" />
+                    <span>Perangkat</span>
+                  </Link>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </SidebarMenuItem>
         </SidebarMenu>
 
@@ -98,7 +132,7 @@ function NavMain({ items }: { items: NavItem[] }) {
         </SidebarMenu>
       </SidebarGroupContent>
     </SidebarGroup>
-  )
+  );
 }
 
 /* ========= Static App Data (kecuali user) ========= */
@@ -116,14 +150,24 @@ const appData = {
       icon: IconLayoutDashboard,
     },
     {
-      title: "Data Logs",
-      url: "/main/data-logs",
+      title: "Log Data",
+      url: "/main/log-data",
       icon: IconTimelineEvent,
     },
     {
-      title: "Global",
-      url: "/main/global",
+      title: "Publik",
+      url: "/main/publik",
       icon: IconWorld,
+    },
+    {
+      title: "Perangkat",
+      url: "/main/perangkat",
+      icon: IconCpu,
+    },
+    {
+      title: "Kontrol",
+      url: "/main/kontrol",
+      icon: IconSettings,
     },
   ] as NavItem[],
 }
@@ -132,8 +176,26 @@ const appData = {
 
 export function AppSidebar({
   user,
+  isAdmin,
   ...props
-}: { user: UserDisplay } & React.ComponentProps<typeof Sidebar>) {
+}: {
+  user: UserDisplay
+  isAdmin: boolean
+} & React.ComponentProps<typeof Sidebar>) {
+  // Admin: cuma lihat "Control"
+  // User biasa: semua menu kecuali "Control"
+  const navItems = React.useMemo(
+    () =>
+      isAdmin
+        ? appData.navMain.filter((item) => item.title === "Kontrol")
+        : appData.navMain.filter((item) => item.title !== "Kontrol"),
+    [isAdmin],
+  // Admin: semua menu
+  // () => appData.navMain, // admin boleh semua
+  // []
+
+  )
+
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
@@ -141,7 +203,7 @@ export function AppSidebar({
       </SidebarHeader>
 
       <SidebarContent>
-        <NavMain items={appData.navMain} />
+        <NavMain items={navItems} />
       </SidebarContent>
 
       <SidebarFooter>
