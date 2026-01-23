@@ -1,31 +1,31 @@
 import { NextResponse, NextRequest } from "next/server";
 import { cookies } from "next/headers";
-import {
-  createServerClient,
-  type CookieMethodsServer,
-} from "@supabase/ssr";
+import { createServerClient, type CookieMethodsServer } from "@supabase/ssr";
 import { z } from "zod";
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-// note: basic env check so the route doesn’t run without required keys
 if (!SUPABASE_URL || !SUPABASE_ANON) {
   throw new Error("Supabase env not set");
 }
 
-// note: input validation — keep it strict & clean
 const schema = z.object({
   email: z.string().min(1).email().transform((v) => v.trim().toLowerCase()),
   password: z.string().min(6).max(64),
+  // optional redirect in body
+  redirect: z
+    .string()
+    .optional()
+    .refine((v) => !v || (v.startsWith("/") && !v.startsWith("//")), {
+      message: "Invalid redirect",
+    }),
 });
 
-// note: safe check for incoming JSON body shapes
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
-// note: make sure redirect only goes to internal routes
 function getRedirectFromQuery(req: NextRequest): string | null {
   const url = new URL(req.url);
   const target = url.searchParams.get("redirect");
@@ -39,7 +39,6 @@ function getRedirectFromBody(raw: unknown): string | null {
   return typeof r === "string" && r.startsWith("/") && !r.startsWith("//") ? r : null;
 }
 
-// note: Supabase SSR setup — cookie handling must use the official pattern
 async function supabaseFromRoute() {
   const store = await cookies();
 
@@ -48,7 +47,6 @@ async function supabaseFromRoute() {
       return store.getAll().map(({ name, value }) => ({ name, value }));
     },
     setAll(cookiesToSet) {
-      // note: delete cookie correctly by forcing path="/"
       for (const { name, value, options } of cookiesToSet) {
         if (options?.maxAge === 0) {
           store.set({ name, value: "", ...(options ?? {}), path: "/", maxAge: 0 });
@@ -65,6 +63,7 @@ async function supabaseFromRoute() {
 export async function POST(req: NextRequest) {
   const noStore = { "Cache-Control": "no-store" as const };
 
+  // 1) Content-Type check (always enforced)
   const contentType = req.headers.get("content-type") ?? "";
   if (!contentType.includes("application/json")) {
     return NextResponse.json(
@@ -73,7 +72,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // note: simple origin/referer check — basic CSRF protection for auth routes
+  // 2) Basic CSRF check (always enforced)
   const host = req.headers.get("host") ?? "";
   const origin = req.headers.get("origin");
   const referer = req.headers.get("referer");
@@ -102,7 +101,7 @@ export async function POST(req: NextRequest) {
     } catch {}
   }
 
-  // note: wrap JSON parsing so malformed bodies don’t crash the route
+  // 3) Parse JSON (always enforced)
   let rawBody: unknown;
   try {
     rawBody = await req.json();
@@ -113,7 +112,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // note: Zod validation gives clean fieldErrors for the frontend
+  // 4) Validate schema (always enforced)
   const parsed = schema.safeParse(rawBody);
   if (!parsed.success) {
     return NextResponse.json(
@@ -124,40 +123,40 @@ export async function POST(req: NextRequest) {
 
   const { email, password } = parsed.data;
 
+  // Optional: force re-auth even if session exists
+  const url = new URL(req.url);
+  const force = url.searchParams.get("force") === "1";
+
   try {
     const supabase = await supabaseFromRoute();
 
-    // note: if already logged in, don’t sign in again
+    // 5) If already logged in and not forcing re-auth, return "alreadySignedIn"
     const { data: sessionData } = await supabase.auth.getSession();
-    if (sessionData.session) {
+    if (sessionData.session && !force) {
       const user = sessionData.session.user;
       const appMeta = (user?.app_metadata ?? {}) as Record<string, unknown>;
       const role = appMeta["role"]?.toString();
 
-      const explicitRedirect =
-        getRedirectFromBody(rawBody) ?? getRedirectFromQuery(req);
-
-      // ⬇️ default redirect based on role
+      const explicitRedirect = getRedirectFromBody(rawBody) ?? getRedirectFromQuery(req);
       const fallbackRedirect = role === "admin" ? "/main/kontrol" : "/main/dashboard";
       const redirect = explicitRedirect ?? fallbackRedirect;
 
       return NextResponse.json(
-        { success: true, redirect },
+        { success: true, alreadySignedIn: true, redirect },
         { headers: noStore },
       );
     }
 
-    // note: do the login
+    // 6) Do sign-in (this is the only path that checks password)
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
-      console.error("[signin] Supabase error:", error);
       return NextResponse.json(
         { success: false, error: error.message },
         { status: 401, headers: noStore },
       );
     }
 
-    // ⬇️ ambil user setelah sign-in biar dapat app_metadata.role terbaru
+    // 7) Fetch user role (fresh)
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -165,18 +164,15 @@ export async function POST(req: NextRequest) {
     const appMeta = (user?.app_metadata ?? {}) as Record<string, unknown>;
     const role = appMeta["role"]?.toString();
 
-    const explicitRedirect =
-      getRedirectFromBody(rawBody) ?? getRedirectFromQuery(req);
-
+    const explicitRedirect = getRedirectFromBody(rawBody) ?? getRedirectFromQuery(req);
     const fallbackRedirect = role === "admin" ? "/main/kontrol" : "/main/dashboard";
     const redirect = explicitRedirect ?? fallbackRedirect;
 
     return NextResponse.json(
-      { success: true, redirect },
+      { success: true, alreadySignedIn: false, redirect },
       { headers: noStore },
     );
   } catch (e) {
-    // note: don’t expose internal errors to client — log only
     console.error("[signin] Fatal error:", e);
     return NextResponse.json(
       { success: false, error: "Internal server error" },
