@@ -155,16 +155,13 @@ export async function POST(req: NextRequest) {
         );
       }
     } else {
-      // mode signin: kalau sudah login, kita return 409 supaya jelas (bukan 200).
       const { data: sessionData } = await supabase.auth.getSession();
-      if (sessionData.session) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: "Anda sudah login. Silakan logout terlebih dahulu.",
-          },
-          { status: 409, headers: noStore },
-        );
+      if (mode === "signin" && sessionData.session) {
+        await supabase.auth.signOut();
+      }
+      
+      if (mode === "session" && sessionData.session) {
+        return NextResponse.json({ success: true, redirect }, { headers: noStore });
       }
     }
 
