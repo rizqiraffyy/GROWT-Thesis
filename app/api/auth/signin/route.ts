@@ -7,19 +7,19 @@ const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
 if (!SUPABASE_URL || !SUPABASE_ANON) {
-  throw new Error("Supabase env not set");
+  throw new Error(
+    "Env Supabase belum diset: NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY",
+  );
 }
 
+// mode:
+// - "signin"  : selalu verifikasi email+password (cocok untuk Postman testing)
+// - "session" : kalau sudah login, balikin 200 + redirect (cocok untuk UI cek session)
 const schema = z.object({
   email: z.string().min(1).email().transform((v) => v.trim().toLowerCase()),
   password: z.string().min(6).max(64),
-  // optional redirect in body
-  redirect: z
-    .string()
-    .optional()
-    .refine((v) => !v || (v.startsWith("/") && !v.startsWith("//")), {
-      message: "Invalid redirect",
-    }),
+  redirect: z.string().optional(),
+  mode: z.enum(["signin", "session"]).optional(),
 });
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -63,16 +63,15 @@ async function supabaseFromRoute() {
 export async function POST(req: NextRequest) {
   const noStore = { "Cache-Control": "no-store" as const };
 
-  // 1) Content-Type check (always enforced)
   const contentType = req.headers.get("content-type") ?? "";
   if (!contentType.includes("application/json")) {
     return NextResponse.json(
-      { success: false, error: "Invalid content type" },
+      { success: false, error: "Content-Type harus application/json." },
       { status: 415, headers: noStore },
     );
   }
 
-  // 2) Basic CSRF check (always enforced)
+  // CSRF-ish check: origin/referer harus host yang sama (kalau ada)
   const host = req.headers.get("host") ?? "";
   const origin = req.headers.get("origin");
   const referer = req.headers.get("referer");
@@ -82,11 +81,16 @@ export async function POST(req: NextRequest) {
       const o = new URL(origin);
       if (host && o.host !== host) {
         return NextResponse.json(
-          { success: false, error: "Invalid origin" },
+          { success: false, error: "Origin tidak valid." },
           { status: 400, headers: noStore },
         );
       }
-    } catch {}
+    } catch {
+      return NextResponse.json(
+        { success: false, error: "Origin tidak valid." },
+        { status: 400, headers: noStore },
+      );
+    }
   }
 
   if (referer) {
@@ -94,69 +98,85 @@ export async function POST(req: NextRequest) {
       const r = new URL(referer);
       if (host && r.host !== host) {
         return NextResponse.json(
-          { success: false, error: "Invalid referer" },
+          { success: false, error: "Referer tidak valid." },
           { status: 400, headers: noStore },
         );
       }
-    } catch {}
+    } catch {
+      return NextResponse.json(
+        { success: false, error: "Referer tidak valid." },
+        { status: 400, headers: noStore },
+      );
+    }
   }
 
-  // 3) Parse JSON (always enforced)
   let rawBody: unknown;
   try {
     rawBody = await req.json();
   } catch {
     return NextResponse.json(
-      { success: false, error: "Invalid JSON body" },
+      { success: false, error: "Body JSON tidak valid." },
       { status: 400, headers: noStore },
     );
   }
 
-  // 4) Validate schema (always enforced)
   const parsed = schema.safeParse(rawBody);
   if (!parsed.success) {
     return NextResponse.json(
-      { success: false, error: "Validation failed", fields: parsed.error.flatten().fieldErrors },
+      {
+        success: false,
+        error: "Validasi gagal.",
+        fields: parsed.error.flatten().fieldErrors,
+      },
       { status: 400, headers: noStore },
     );
   }
 
-  const { email, password } = parsed.data;
-
-  // Optional: force re-auth even if session exists
-  const url = new URL(req.url);
-  const force = url.searchParams.get("force") === "1";
+  const { email, password, mode } = parsed.data;
 
   try {
     const supabase = await supabaseFromRoute();
 
-    // 5) If already logged in and not forcing re-auth, return "alreadySignedIn"
-    const { data: sessionData } = await supabase.auth.getSession();
-    if (sessionData.session && !force) {
-      const user = sessionData.session.user;
-      const appMeta = (user?.app_metadata ?? {}) as Record<string, unknown>;
-      const role = appMeta["role"]?.toString();
+    // Tentukan redirect
+    const explicitRedirect = getRedirectFromBody(rawBody) ?? getRedirectFromQuery(req);
 
-      const explicitRedirect = getRedirectFromBody(rawBody) ?? getRedirectFromQuery(req);
-      const fallbackRedirect = role === "admin" ? "/main/kontrol" : "/main/dashboard";
-      const redirect = explicitRedirect ?? fallbackRedirect;
-
-      return NextResponse.json(
-        { success: true, alreadySignedIn: true, redirect },
-        { headers: noStore },
-      );
+    // Kalau mode = "session", barulah boleh shortcut cek session.
+    // Defaultnya "signin" → selalu verifikasi password (biar testing konsisten).
+    if (mode === "session") {
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (sessionData.session) {
+        const user = sessionData.session.user;
+        const appMeta = (user?.app_metadata ?? {}) as Record<string, unknown>;
+        const role = appMeta["role"]?.toString();
+        const fallbackRedirect = role === "admin" ? "/main/kontrol" : "/main/dashboard";
+        return NextResponse.json(
+          { success: true, redirect: explicitRedirect ?? fallbackRedirect },
+          { headers: noStore },
+        );
+      }
+    } else {
+      // mode signin: kalau sudah login, kita return 409 supaya jelas (bukan 200).
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (sessionData.session) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "Anda sudah login. Silakan logout terlebih dahulu.",
+          },
+          { status: 409, headers: noStore },
+        );
+      }
     }
 
-    // 6) Do sign-in (this is the only path that checks password)
+    // LOGIN: selalu verifikasi email+password
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
       return NextResponse.json(
-        { success: false, error: error.message },
+        { success: false, error: "Email atau password salah." },
         { status: 401, headers: noStore },
       );
     }
 
-    // 7) Fetch user role (fresh)
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -164,18 +184,14 @@ export async function POST(req: NextRequest) {
     const appMeta = (user?.app_metadata ?? {}) as Record<string, unknown>;
     const role = appMeta["role"]?.toString();
 
-    const explicitRedirect = getRedirectFromBody(rawBody) ?? getRedirectFromQuery(req);
     const fallbackRedirect = role === "admin" ? "/main/kontrol" : "/main/dashboard";
     const redirect = explicitRedirect ?? fallbackRedirect;
 
-    return NextResponse.json(
-      { success: true, alreadySignedIn: false, redirect },
-      { headers: noStore },
-    );
+    return NextResponse.json({ success: true, redirect }, { headers: noStore });
   } catch (e) {
     console.error("[signin] Fatal error:", e);
     return NextResponse.json(
-      { success: false, error: "Internal server error" },
+      { success: false, error: "Terjadi kesalahan pada server." },
       { status: 500, headers: noStore },
     );
   }
