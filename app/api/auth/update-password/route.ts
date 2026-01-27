@@ -1,4 +1,3 @@
-// app/api/auth/update-password/route.ts
 import { NextResponse } from "next/server"
 import { cookies } from "next/headers"
 import {
@@ -8,16 +7,52 @@ import {
 } from "@supabase/ssr"
 import { z } from "zod"
 
-// note: same schema style as signup
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
+const SUPABASE_ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+
+if (!SUPABASE_URL || !SUPABASE_ANON) {
+  throw new Error(
+    "Environment Supabase belum disetel (NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY)",
+  )
+}
+
+// Password policy (lebih jelas untuk testing + UI)
 const schema = z
   .object({
-    password: z.string().min(8, "Password must be at least 8 characters"),
-    confirmPassword: z.string().min(1, "Please confirm your password"),
+    password: z
+      .string()
+      .min(8, "Kata sandi minimal 8 karakter")
+      .max(64, "Kata sandi maksimal 64 karakter"),
+    confirmPassword: z.string().min(1, "Konfirmasi kata sandi wajib diisi"),
   })
   .refine((v) => v.password === v.confirmPassword, {
     path: ["confirmPassword"],
-    message: "Passwords do not match",
+    message: "Konfirmasi kata sandi tidak sama",
   })
+
+function jsonNoStore(body: unknown, init?: ResponseInit) {
+  return NextResponse.json(body, {
+    ...init,
+    headers: {
+      "Cache-Control": "no-store",
+      ...(init?.headers ?? {}),
+    },
+  })
+}
+
+// Proteksi dasar: kalau request dari browser, pastikan origin sama host (Postman biasanya tidak kirim Origin)
+function isSameOrigin(req: Request): boolean {
+  const origin = req.headers.get("origin")
+  if (!origin) return true
+
+  try {
+    const originUrl = new URL(origin)
+    const reqUrl = new URL(req.url)
+    return originUrl.host === reqUrl.host
+  } catch {
+    return false
+  }
+}
 
 async function supabaseFromRoute() {
   const store = await cookies()
@@ -28,8 +63,8 @@ async function supabaseFromRoute() {
     },
     setAll(items: { name: string; value: string; options?: CookieOptions }[]) {
       for (const { name, value, options } of items) {
+        // Pastikan cookie benar-benar terhapus (path="/")
         if (options?.maxAge === 0) {
-          // note: ensure cookie deletion works in all browsers
           store.set({
             name,
             value: "",
@@ -44,93 +79,120 @@ async function supabaseFromRoute() {
     },
   }
 
-  return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { cookies: cookieMethods },
-  )
+  return createServerClient(SUPABASE_URL, SUPABASE_ANON, { cookies: cookieMethods })
 }
 
 export async function POST(req: Request) {
-  const noStore = { "Cache-Control": "no-store" as const }
+  // 1) Content-Type guard
+  const ct = req.headers.get("content-type") ?? ""
+  if (!ct.includes("application/json")) {
+    return jsonNoStore(
+      { success: false, error: "Content-Type tidak valid" },
+      { status: 415 },
+    )
+  }
+
+  // 2) Origin check (basic CSRF protection)
+  if (!isSameOrigin(req)) {
+    return jsonNoStore(
+      { success: false, error: "Origin tidak valid" },
+      { status: 400 },
+    )
+  }
+
+  // 3) Parse JSON aman
+  let body: unknown
+  try {
+    body = await req.json()
+  } catch {
+    return jsonNoStore(
+      { success: false, error: "Body JSON tidak valid" },
+      { status: 400 },
+    )
+  }
+
+  // 4) Validasi input
+  const parsed = schema.safeParse(body)
+  if (!parsed.success) {
+    return jsonNoStore(
+      {
+        success: false,
+        error: "Validasi gagal",
+        fields: parsed.error.flatten().fieldErrors,
+      },
+      { status: 400 },
+    )
+  }
 
   try {
-    // basic content-type guard
-    const ct = req.headers.get("content-type") ?? ""
-    if (!ct.includes("application/json")) {
-      return NextResponse.json(
-        { error: "Invalid content type" },
-        { status: 415, headers: noStore },
-      )
-    }
-
-    // safe JSON parsing + Zod validation
-    let body: unknown
-    try {
-      body = await req.json()
-    } catch {
-      return NextResponse.json(
-        { error: "Invalid JSON body" },
-        { status: 400, headers: noStore },
-      )
-    }
-
-    const parsed = schema.safeParse(body)
-    if (!parsed.success) {
-      const msg =
-        parsed.error.issues[0]?.message ?? "Invalid input"
-      return NextResponse.json(
-        { error: msg },
-        { status: 400, headers: noStore },
-      )
-    }
-
     const supabase = await supabaseFromRoute()
 
-    // ensure valid recovery session exists
+    // 5) Pastikan ada session recovery (hasil klik link reset di email)
     const {
       data: { session },
       error: sessionErr,
     } = await supabase.auth.getSession()
 
     if (sessionErr) {
-      return NextResponse.json(
-        { error: sessionErr.message },
-        { status: 500, headers: noStore },
+      // jangan bocorkan detail internal berlebihan
+      return jsonNoStore(
+        { success: false, error: "Gagal memeriksa sesi. Silakan coba lagi." },
+        { status: 500 },
       )
     }
 
     if (!session) {
-      return NextResponse.json(
+      return jsonNoStore(
         {
+          success: false,
           error:
-            "Recovery session not found. Please use the latest reset link sent to your email.",
+            "Sesi pemulihan tidak ditemukan. Silakan gunakan tautan reset terbaru dari email.",
         },
-        { status: 401, headers: noStore },
+        { status: 401 },
       )
     }
 
+    // (Opsional) Pastikan ini benar-benar sesi recovery
+    // Banyak kasus session.user ada, tapi tipe recovery ada di exchange token flow.
+    // Karena kita tidak mengandalkan type di sini, minimal: session harus ada.
+
+    // 6) Update password
     const { error: updateErr } = await supabase.auth.updateUser({
       password: parsed.data.password,
     })
 
     if (updateErr) {
-      return NextResponse.json(
-        { error: updateErr.message },
-        { status: 400, headers: noStore },
+      const msg = updateErr.message.toLowerCase()
+
+      // Rate limit / terlalu sering
+      if (msg.includes("rate limit") || msg.includes("too many requests")) {
+        return jsonNoStore(
+          {
+            success: false,
+            error: "Terlalu banyak percobaan. Silakan coba lagi nanti.",
+          },
+          { status: 429 },
+        )
+      }
+
+      return jsonNoStore(
+        { success: false, error: "Gagal memperbarui kata sandi. Coba lagi." },
+        { status: 400 },
       )
     }
 
-    return NextResponse.json(
-      { success: true },
-      { headers: noStore },
+    // 7) (Opsional tapi bagus) Logout setelah ganti password agar session lama tidak dipakai
+    await supabase.auth.signOut()
+
+    return jsonNoStore(
+      { success: true, message: "Kata sandi berhasil diperbarui." },
+      { status: 200 },
     )
   } catch (err) {
-    const message =
-      err instanceof Error ? err.message : "Unknown error"
-    return NextResponse.json(
-      { error: message },
-      { status: 500, headers: { "Cache-Control": "no-store" } },
+    console.error("[update-password] Fatal error:", err)
+    return jsonNoStore(
+      { success: false, error: "Terjadi kesalahan pada server" },
+      { status: 500 },
     )
   }
 }
