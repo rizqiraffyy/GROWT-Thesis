@@ -8,11 +8,16 @@ export const runtime = "nodejs";
 
 const payloadSchema = z
   .object({
-    rfid: z.string().min(1, "RFID wajib diisi"),
-    weight: z.number().positive("Berat harus lebih dari 0"),
+    rfid: z
+      .string({ required_error: "RFID wajib diisi" })
+      .min(1, "RFID wajib diisi")
+      .transform((v) => v.trim()),
+
+    // Pakai coerce biar "123.4" (string) dari ESP tetap lolos jadi number
+    weight: z.coerce.number().positive("Berat harus lebih dari 0"),
 
     device_id: z.string().uuid().optional(),
-    device_serial: z.string().min(1).optional(),
+    device_serial: z.string().min(1).optional().transform((v) => v?.trim()),
 
     measured_at: z.string().datetime().optional(),
   })
@@ -28,8 +33,7 @@ const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const IOT_API_KEY = process.env.IOT_API_KEY!;
 
 /* ================= Client ================= */
-
-// Service role → bypass RLS (HARUS divalidasi manual)
+// Service role → bypass RLS (validasi manual)
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
   auth: { persistSession: false },
 });
@@ -39,11 +43,9 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
 function unauthorized(msg = "Tidak diizinkan") {
   return NextResponse.json({ error: msg }, { status: 401 });
 }
-
 function badRequest(msg: string, details?: unknown) {
   return NextResponse.json({ error: msg, details }, { status: 400 });
 }
-
 function serverError(msg = "Terjadi kesalahan server") {
   return NextResponse.json({ error: msg }, { status: 500 });
 }
@@ -65,9 +67,7 @@ export async function POST(req: Request) {
 
     /* 2) Parse JSON */
     const json = await req.json().catch(() => null);
-    if (!json) {
-      return badRequest("Body JSON tidak valid");
-    }
+    if (!json) return badRequest("Body JSON tidak valid");
 
     /* 3) Validasi payload */
     const parsed = payloadSchema.safeParse(json);
@@ -75,8 +75,7 @@ export async function POST(req: Request) {
       return badRequest("Payload tidak valid", parsed.error.issues);
     }
 
-    const { rfid, weight, device_id, device_serial, measured_at } =
-      parsed.data;
+    const { rfid, weight, device_id, device_serial, measured_at } = parsed.data;
 
     /* 4) Normalisasi waktu */
     const createdAt = measured_at ? new Date(measured_at) : new Date();
@@ -84,7 +83,7 @@ export async function POST(req: Request) {
       return badRequest("Format waktu penimbangan tidak valid");
     }
 
-    /* 5) Cari device */
+    /* 5) Cari device (wajib valid & aktif) */
     const deviceLookup = device_id
       ? supabase
           .from("devices")
@@ -108,7 +107,7 @@ export async function POST(req: Request) {
       return badRequest("Perangkat tidak ditemukan atau belum aktif");
     }
 
-    /* 6) Cari RFID & cek kepemilikan */
+    /* 6) Cari RFID & cek kepemilikan (rfid harus milik owner device) */
     const { data: livestock, error: liveErr } = await supabase
       .from("livestocks")
       .select("rfid, user_id")
@@ -124,7 +123,7 @@ export async function POST(req: Request) {
       return badRequest("RFID ternak tidak ditemukan");
     }
 
-    if (livestock.user_id !== device.owner_user_id) {
+    if (!livestock.user_id || livestock.user_id !== device.owner_user_id) {
       return badRequest("RFID bukan milik pemilik perangkat");
     }
 
@@ -145,7 +144,7 @@ export async function POST(req: Request) {
       return serverError("Gagal menyimpan data berat");
     }
 
-    /* 8) Update last_seen_at (opsional) */
+    /* 8) Update last_seen_at (opsional, gagal tidak menggagalkan request) */
     const { error: seenErr } = await supabase
       .from("devices")
       .update({ last_seen_at: createdAt.toISOString() })
