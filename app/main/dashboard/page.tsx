@@ -7,20 +7,19 @@ export default async function Page() {
   const chartData = await getDashboardMonthlySeries("all");
 
   return (
-    <div className="flex flex-1 flex-col">
+    <div className="flex flex-1 flex-col" data-testid="dashboard-page">
       <div className="@container/main flex flex-1 flex-col gap-2">
         <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
-          {/* KPI cards */}
-          <SectionCards />
+          <div data-testid="dashboard-kpi">
+            <SectionCards />
+          </div>
 
-          {/* Chart MoM */}
-          <div className="px-4 lg:px-6">
+          <div className="px-4 lg:px-6" data-testid="dashboard-chart">
             <ChartAreaInteractive data={chartData} />
           </div>
 
-          {/* Data Logs Table */}
-          <div className="flex-1 overflow-hidden">
-            <DataTable/>
+          <div className="flex-1 overflow-hidden" data-testid="dashboard-table">
+            <DataTable />
           </div>
         </div>
       </div>

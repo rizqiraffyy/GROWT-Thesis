@@ -9,22 +9,32 @@ export const runtime = "nodejs";
 const payloadSchema = z
   .object({
     rfid: z
-      .string({ required_error: "RFID wajib diisi" })
+      .string()
       .min(1, "RFID wajib diisi")
-      .transform((v) => v.trim()),
+      .transform((v) => v.trim())
+      .refine((v) => v.length > 0, "RFID wajib diisi"), // biar "   " ketolak
 
     // Pakai coerce biar "123.4" (string) dari ESP tetap lolos jadi number
     weight: z.coerce.number().positive("Berat harus lebih dari 0"),
 
     device_id: z.string().uuid().optional(),
-    device_serial: z.string().min(1).optional().transform((v) => v?.trim()),
 
-    measured_at: z.string().datetime().optional(),
+    device_serial: z
+      .string()
+      .optional()
+      .transform((v) => v?.trim())
+      .refine((v) => !v || v.length > 0, "device_serial tidak boleh kosong"),
+
+    measured_at: z
+      .string()
+      .datetime({ message: "Invalid measured_at timestamp" })
+      .optional(),
   })
-  .refine((v) => v.device_id || v.device_serial, {
+  .refine((v) => !!(v.device_id || v.device_serial), {
     message: "Harus menyertakan device_id atau device_serial",
-    path: ["device_id"],
+    path: ["_errors"],
   });
+
 
 /* ================= Env ================= */
 
