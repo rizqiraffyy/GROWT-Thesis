@@ -63,6 +63,14 @@ async function supabaseFromRoute() {
 export async function POST(req: NextRequest) {
   const noStore = { "Cache-Control": "no-store" as const }
 
+  const url = new URL(req.url)
+  if (url.searchParams.has("email") || url.searchParams.has("password")) {
+    return NextResponse.json(
+      { success: false, error: "Parameter sensitif tidak boleh di URL." },
+      { status: 400, headers: noStore },
+    )
+  }
+  
   const contentType = req.headers.get("content-type") ?? ""
   if (!contentType.includes("application/json")) {
     return NextResponse.json(
