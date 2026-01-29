@@ -16,9 +16,6 @@ import {
   CardContent,
 } from "@/components/ui/card";
 
-const DEMO_EMAIL = "simulation@growt.com";
-const DEMO_PASSWORD = "password";
-
 export default function DemoPage() {
   const router = useRouter();
   const supabase = getSupabaseBrowser();
@@ -27,29 +24,26 @@ export default function DemoPage() {
     let cancelled = false;
 
     (async () => {
-      // 1) Jika sudah login sebagai demo user → langsung ke dashboard
+      // 1) Kalau sudah login (siapa pun) dan sudah punya session, langsung masuk dashboard
+      // (kalau kamu tetap mau cek spesifik demo email, boleh, tapi tidak wajib)
       const { data, error: userErr } = await supabase.auth.getUser();
-
-      if (!cancelled && !userErr && data.user?.email === DEMO_EMAIL) {
+      if (!cancelled && !userErr && data.user?.email === process.env.DEMO_EMAIL!) {
         router.replace("/main/dashboard");
         return;
       }
 
-      // 2) Login pakai akun demo
-      const { error } = await supabase.auth.signInWithPassword({
-        email: DEMO_EMAIL,
-        password: DEMO_PASSWORD,
-      });
+      // 2) Minta server login-kan akun demo (password tidak ada di client)
+      const res = await fetch("/api/auth/demo-signin", { method: "POST" });
+      const json = await res.json().catch(() => null);
 
       if (cancelled) return;
 
-      if (error) {
-        console.error("[/demo] demo login error:", error);
+      if (!res.ok || !json?.success) {
         router.replace(
           "/auth/signin?error=Gagal%20masuk%20akun%20demo.%20Silakan%20coba%20lagi%20atau%20hubungi%20admin.",
         );
       } else {
-        router.replace("/main/dashboard");
+        router.replace(json.redirect ?? "/main/dashboard");
       }
     })();
 
