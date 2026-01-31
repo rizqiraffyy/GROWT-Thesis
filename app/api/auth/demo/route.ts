@@ -6,11 +6,18 @@ const SUPABASE_ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const DEMO_EMAIL = process.env.DEMO_EMAIL!;
 const DEMO_PASSWORD = process.env.DEMO_PASSWORD!;
 
+function jsonRes(payload: unknown, status: number, headers?: Record<string, string>) {
+  return new NextResponse(JSON.stringify(payload), {
+    status,
+    headers: { ...(headers ?? {}), "Content-Type": "application/json" },
+  });
+}
+
 export async function POST(req: NextRequest) {
   const noStore = { "Cache-Control": "no-store" as const };
 
-  // siapkan response lebih dulu supaya cookie bisa ditempel
-  const res = NextResponse.json({ success: true, redirect: "/main/dashboard" }, { headers: noStore });
+  // Response yang akan selalu kita return (supaya cookie bisa ditempel)
+  let res = jsonRes({ success: true, redirect: "/main/dashboard" }, 200, noStore);
 
   const supabase = createServerClient(SUPABASE_URL, SUPABASE_ANON, {
     cookies: {
@@ -26,10 +33,12 @@ export async function POST(req: NextRequest) {
   });
 
   if (!DEMO_EMAIL || !DEMO_PASSWORD) {
-    return NextResponse.json(
+    res = jsonRes(
       { success: false, error: "Kredensial demo belum dikonfigurasi." },
-      { status: 500, headers: noStore },
+      500,
+      noStore,
     );
+    return res;
   }
 
   const { error } = await supabase.auth.signInWithPassword({
@@ -38,10 +47,8 @@ export async function POST(req: NextRequest) {
   });
 
   if (error) {
-    return NextResponse.json(
-      { success: false, error: "Gagal masuk akun demo." },
-      { status: 401, headers: noStore },
-    );
+    res = jsonRes({ success: false, error: "Gagal masuk akun demo." }, 401, noStore);
+    return res;
   }
 
   return res;

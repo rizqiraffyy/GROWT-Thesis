@@ -19,28 +19,41 @@ export default function DemoPage() {
 
     (async () => {
       // 1) Kalau sudah login (siapa pun), langsung masuk dashboard
-      const { data, error } = await supabase.auth.getUser();
-      if (!cancelled && !error && data.user) {
+      const { data: u1, error: e1 } = await supabase.auth.getUser();
+      if (!cancelled && !e1 && u1.user) {
         router.replace("/main/dashboard");
         return;
       }
 
-      // 2) Minta server login-kan akun demo
+      // 2) Minta server login-kan akun demo (cookie harus balik)
       const res = await fetch("/api/auth/demo-signin", {
         method: "POST",
         credentials: "include",
       });
-      const json = await res.json().catch(() => null);
 
+      const json = await res.json().catch(() => null);
       if (cancelled) return;
 
       if (!res.ok || !json?.success) {
         router.replace(
           "/auth/signin?error=Gagal%20masuk%20akun%20demo.%20Silakan%20coba%20lagi%20atau%20hubungi%20admin.",
         );
-      } else {
-        router.replace(json.redirect ?? "/main/dashboard");
+        return;
       }
+
+      // 3) "Tempel" session: paksa supabase client baca cookie terbaru
+      await supabase.auth.getSession();
+
+      // 4) Verifikasi user kebaca; kalau belum, retry sekali (kadang perlu tick)
+      const { data: u2 } = await supabase.auth.getUser();
+      if (!u2.user) {
+        await new Promise((r) => setTimeout(r, 150));
+        await supabase.auth.getSession();
+      }
+
+      if (cancelled) return;
+
+      router.replace(json.redirect ?? "/main/dashboard");
     })();
 
     return () => {
