@@ -56,6 +56,19 @@ import { cn } from "@/lib/utils";
 const SPECIES = ["Cow", "Buffalo", "Goat", "Sheep", "Pig"] as const;
 const SEX = ["Male", "Female"] as const;
 
+const SPECIES_LABEL: Record<(typeof SPECIES)[number], string> = {
+  Cow: "Sapi",
+  Buffalo: "Kerbau",
+  Goat: "Kambing",
+  Sheep: "Domba",
+  Pig: "Babi",
+};
+
+const SEX_LABEL: Record<(typeof SEX)[number], string> = {
+  Male: "Jantan",
+  Female: "Betina",
+};
+
 const VACCINES = [
   "Anthrax",
   "SE",
@@ -605,7 +618,7 @@ export default function LivestockCreateCard() {
 
               <div className="space-y-1.5">
                 <Label htmlFor="species">
-                  Jenis <span className="text-destructive">*</span>
+                  Spesies <span className="text-destructive">*</span>
                 </Label>
                 <Controller
                   name="species"
@@ -624,7 +637,7 @@ export default function LivestockCreateCard() {
                       <SelectContent>
                         {SPECIES.map((sp) => (
                           <SelectItem key={sp} value={sp}>
-                            {sp}
+                            {SPECIES_LABEL[sp]}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -657,7 +670,7 @@ export default function LivestockCreateCard() {
                       <SelectContent>
                         {SEX.map((sx) => (
                           <SelectItem key={sx} value={sx}>
-                            {sx}
+                            {SEX_LABEL[sx]}
                           </SelectItem>
                         ))}
                       </SelectContent>
