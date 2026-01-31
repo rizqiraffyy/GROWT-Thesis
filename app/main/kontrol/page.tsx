@@ -29,18 +29,8 @@ export default async function ControlPage() {
   const devices = await getDevices();
 
   return (
-    <div className="flex flex-1 flex-col">
-      <div className="px-4 pt-4">
-        <h1 className="text-xl font-semibold tracking-tight">Control Panel</h1>
-        <p className="text-sm text-muted-foreground">
-          Only admin accounts can access this page.
-        </p>
-      </div>
-
-      <div className="px-4 pt-2">
-        <SectionCards />
-      </div>
-
+    <div>
+      <SectionCards />
       <div className="flex flex-1 flex-col gap-4 p-4 pt-1">
         <div className="flex flex-1 flex-col gap-8 md:flex">
           <DataTable data={devices} columns={columns} />

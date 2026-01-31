@@ -199,7 +199,7 @@ export default function DeviceCreateCard() {
             ternak ke lokasi kandang.
           </p>
           <Button asChild size="sm">
-            <Link href="/main/settings">
+            <Link href="/main/pengaturan">
               <SettingsIcon className="mr-2 h-4 w-4" />
               Buka Pengaturan
             </Link>
