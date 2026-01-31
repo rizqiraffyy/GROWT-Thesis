@@ -10,6 +10,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 
+// DEMO (akan terlihat di client)
+const DEMO_EMAIL = "simulation@growt.com";
+const DEMO_PASSWORD = "password";
+
 export default function DemoPage() {
   const router = useRouter();
   const supabase = getSupabaseBrowser();
@@ -18,42 +22,30 @@ export default function DemoPage() {
     let cancelled = false;
 
     (async () => {
-      // 1) Kalau sudah login (siapa pun), langsung masuk dashboard
-      const { data: u1, error: e1 } = await supabase.auth.getUser();
-      if (!cancelled && !e1 && u1.user) {
+      // kalau sudah login siapa pun -> langsung dashboard
+      const { data: u1 } = await supabase.auth.getUser();
+      if (!cancelled && u1.user) {
         router.replace("/main/dashboard");
         return;
       }
 
-      // 2) Minta server login-kan akun demo (cookie harus balik)
-      const res = await fetch("/api/auth/demo-signin", {
-        method: "POST",
-        credentials: "include",
+      // login demo langsung di client
+      const { error } = await supabase.auth.signInWithPassword({
+        email: DEMO_EMAIL,
+        password: DEMO_PASSWORD,
       });
 
-      const json = await res.json().catch(() => null);
       if (cancelled) return;
 
-      if (!res.ok || !json?.success) {
-        router.replace(
-          "/auth/signin?error=Gagal%20masuk%20akun%20demo.%20Silakan%20coba%20lagi%20atau%20hubungi%20admin.",
-        );
+      if (error) {
+        router.replace("/auth/signin?error=Gagal%20masuk%20akun%20demo");
         return;
       }
 
-      // 3) "Tempel" session: paksa supabase client baca cookie terbaru
+      // sync session (optional tapi bagus)
       await supabase.auth.getSession();
 
-      // 4) Verifikasi user kebaca; kalau belum, retry sekali (kadang perlu tick)
-      const { data: u2 } = await supabase.auth.getUser();
-      if (!u2.user) {
-        await new Promise((r) => setTimeout(r, 150));
-        await supabase.auth.getSession();
-      }
-
-      if (cancelled) return;
-
-      router.replace(json.redirect ?? "/main/dashboard");
+      router.replace("/main/dashboard");
     })();
 
     return () => {
@@ -69,11 +61,9 @@ export default function DemoPage() {
             <LifeBuoy className="h-3 w-3" />
             Demo • Akun Simulasi
           </Badge>
-
           <h1 className="text-2xl font-bold leading-tight text-foreground sm:text-3xl">
             Masuk ke akun demo…
           </h1>
-
           <p className="mx-auto max-w-sm text-sm text-muted-foreground">
             Kami sedang masuk sebagai pengguna simulasi dan menyiapkan dashboard untuk Anda.
           </p>
