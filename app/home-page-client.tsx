@@ -41,12 +41,9 @@ export function HomePageClient() {
   useEffect(() => {
     const run = async () => {
       const supabase = getSupabaseBrowser();
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      const { data: { user } } = await supabase.auth.getUser();
 
       const nextParam = searchParams.get("next") || "/main/dashboard";
-
       if (user) {
         router.replace(nextParam.startsWith("/") ? nextParam : "/main/dashboard");
       } else {
@@ -54,10 +51,8 @@ export function HomePageClient() {
       }
     };
 
-    const hasCode = searchParams.has("code");
-    const hasNext = searchParams.has("next");
-
-    if (hasCode || hasNext) run();
+    // ONLY run for OAuth callback
+    if (searchParams.has("code")) run();
   }, [router, searchParams]);
 
   return (
