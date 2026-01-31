@@ -8,13 +8,7 @@ import { Loader2, LifeBuoy } from "lucide-react";
 import { getSupabaseBrowser } from "@/lib/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardContent,
-} from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 
 export default function DemoPage() {
   const router = useRouter();
@@ -24,16 +18,18 @@ export default function DemoPage() {
     let cancelled = false;
 
     (async () => {
-      // 1) Kalau sudah login (siapa pun) dan sudah punya session, langsung masuk dashboard
-      // (kalau kamu tetap mau cek spesifik demo email, boleh, tapi tidak wajib)
-      const { data, error: userErr } = await supabase.auth.getUser();
-      if (!cancelled && !userErr && data.user?.email === process.env.DEMO_EMAIL!) {
+      // 1) Kalau sudah login (siapa pun), langsung masuk dashboard
+      const { data, error } = await supabase.auth.getUser();
+      if (!cancelled && !error && data.user) {
         router.replace("/main/dashboard");
         return;
       }
 
-      // 2) Minta server login-kan akun demo (password tidak ada di client)
-      const res = await fetch("/api/auth/demo-signin", { method: "POST" });
+      // 2) Minta server login-kan akun demo
+      const res = await fetch("/api/auth/demo-signin", {
+        method: "POST",
+        credentials: "include",
+      });
       const json = await res.json().catch(() => null);
 
       if (cancelled) return;
@@ -55,12 +51,8 @@ export default function DemoPage() {
   return (
     <main className="min-h-screen bg-background px-4 py-10 flex justify-center">
       <div className="w-full max-w-md space-y-6">
-        {/* Header (template sama) */}
         <section className="space-y-3 text-center">
-          <Badge
-            variant="outline"
-            className="inline-flex items-center gap-1 text-xs"
-          >
+          <Badge variant="outline" className="inline-flex items-center gap-1 text-xs">
             <LifeBuoy className="h-3 w-3" />
             Demo • Akun Simulasi
           </Badge>
@@ -78,8 +70,7 @@ export default function DemoPage() {
           <CardHeader>
             <CardTitle className="text-base">Sedang menyiapkan dashboard</CardTitle>
             <CardDescription className="text-sm">
-              Jika proses ini terlalu lama, kemungkinan koneksi sedang lambat atau akun demo
-              sedang bermasalah.
+              Jika proses ini terlalu lama, kemungkinan koneksi sedang lambat atau akun demo sedang bermasalah.
             </CardDescription>
           </CardHeader>
 

@@ -80,7 +80,7 @@ function NavMain({ items }: { items: NavItem[] }) {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <SidebarMenuButton
-                  tooltip="Register livestock or device"
+                  tooltip="Registrasi"
                   className="bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground active:bg-primary/90 active:text-primary-foreground min-w-8 duration-200 ease-linear"
                 >
                   <IconCirclePlusFilled />
