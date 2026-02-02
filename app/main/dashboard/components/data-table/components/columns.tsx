@@ -33,6 +33,7 @@ function SharedSwitchCell({ row }: { row: Row<Task> }) {
     <Switch
       checked={isPublic}
       disabled={loading}
+      aria-label={`Toggle publik RFID ${rfid}`} 
       onCheckedChange={async (checked) => {
         try {
           setLoading(true);

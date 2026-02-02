@@ -27,13 +27,14 @@ export function DataTableRowActions<TData extends HasRFID>({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="h-8 w-8 p-0">
+        <Button variant="ghost" size="icon" className="h-8 w-8 p-0" aria-label={`Aksi baris RFID ${rfid}`}>
           <MoreHorizontal className="h-4 w-4" />
         </Button>
       </DropdownMenuTrigger>
 
       <DropdownMenuContent align="end">
         <DropdownMenuItem
+          aria-label={`Detail RFID ${rfid}`}
           onClick={() => router.push(`/main/dashboard/${rfid}`)}
         >
           Detail

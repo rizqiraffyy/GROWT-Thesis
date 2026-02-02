@@ -63,6 +63,7 @@ export function NavUser({ user }: NavUserProps) {
           <DropdownMenuTrigger asChild>
             <SidebarMenuButton
               size="lg"
+              aria-label="User Menu"
               className="
                 group
                 data-[state=open]:bg-sidebar-accent
@@ -154,6 +155,7 @@ export function NavUser({ user }: NavUserProps) {
                 <button
                   type="submit"
                   className="flex w-full items-center gap-2 text-left"
+                  aria-label="Keluar"
                 >
                   <LogOut className="h-4 w-4" />
                   <span>Keluar</span>
