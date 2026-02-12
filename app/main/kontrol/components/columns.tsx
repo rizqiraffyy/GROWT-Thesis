@@ -27,53 +27,44 @@ function DeviceSwitchCell({ row }: { row: Row<Device> }) {
   const supabase = getSupabaseBrowser();
 
   const id = row.original.id;
+  const status = row.original.status;
 
-  const isRevoked = row.original.status === "revoked";
+  const isDisabled =
+    loading || status === "revoked";
+
   const isActive = !!row.original.is_active;
 
   return (
     <Switch
       checked={isActive}
-      disabled={loading || isRevoked}
+      disabled={isDisabled}
       onCheckedChange={async (nextChecked) => {
-        if (isRevoked) return;
+        if (status === "revoked" || status === "pending") return;
+
+        const nextStatus: Device["status"] =
+          nextChecked ? "active" : "inactive";
+
+        const payload: Pick<Device, "is_active" | "status"> = {
+          is_active: nextChecked,
+          status: nextStatus,
+        };
 
         try {
           setLoading(true);
 
-          const {
-            data: { user: admin },
-            error: userError,
-          } = await supabase.auth.getUser();
-
-          if (userError) {
-            console.error("Gagal mengambil user admin:", userError);
-            return;
-          }
-
-          const nextStatus: Device["status"] = nextChecked ? "active" : "inactive";
-
-          const payload: Partial<Device> = {
-            is_active: nextChecked,
-            status: nextStatus,
-            approved_at: nextChecked ? new Date().toISOString() : null,
-            approved_by: nextChecked ? admin?.id ?? null : null,
-            approved_by_email: nextChecked ? admin?.email ?? null : null,
-          };
-
-          const { error } = await supabase.from("devices").update(payload).eq("id", id);
+          const { error } = await supabase
+            .from("devices")
+            .update(payload)
+            .eq("id", id);
 
           if (error) {
             console.error("Gagal update device:", error);
             return;
           }
 
-          // ⚠️ Fallback update lokal (biar UI langsung berubah)
+          // update lokal
           row.original.is_active = nextChecked;
           row.original.status = nextStatus;
-          row.original.approved_at = payload.approved_at ?? null;
-          row.original.approved_by = payload.approved_by ?? null;
-          row.original.approved_by_email = payload.approved_by_email ?? null;
         } finally {
           setLoading(false);
         }
@@ -236,16 +227,6 @@ export const columns: ColumnDef<Device>[] = [
       );
     },
     filterFn: (row, id, value) => value.includes(row.getValue(id)),
-  },
-
-  // ✅ Disetujui oleh
-  {
-    id: "approvedBy",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Disetujui Oleh" />,
-    cell: ({ row }) => {
-      const email = row.original.approved_by_email;
-      return <span className="text-xs text-muted-foreground">{email ?? "—"}</span>;
-    },
   },
 
   // ⏱ Terakhir terlihat
