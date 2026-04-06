@@ -81,7 +81,7 @@ export async function SectionCards() {
 
   const healthDelta =
     healthScoreCurrent != null && healthScorePrev != null
-      ? healthScoreCurrent - healthScorePrev
+      ? Math.round(healthScoreCurrent - healthScorePrev)
       : null;
 
   return (
