@@ -209,7 +209,7 @@ export async function SectionCards() {
             Skor Pertumbuhan
           </CardDescription>
           <CardTitle className="text-lg sm:text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-            {healthScoreCurrent != null ? healthScoreCurrent : "–"}
+            {healthScoreCurrent != null ? Math.round(healthScoreCurrent) : "–"}
           </CardTitle>
           <CardAction>
             <Badge

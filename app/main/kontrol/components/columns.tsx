@@ -39,7 +39,7 @@ function DeviceSwitchCell({ row }: { row: Row<Device> }) {
       checked={isActive}
       disabled={isDisabled}
       onCheckedChange={async (nextChecked) => {
-        if (status === "revoked" || status === "pending") return;
+        if (status === "revoked") return;
 
         const nextStatus: Device["status"] =
           nextChecked ? "active" : "inactive";
